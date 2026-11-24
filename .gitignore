@@ -1,0 +1,5 @@
+desktop/target/
+nbproject/private/
+*.class
+*.cap
+gym.db
