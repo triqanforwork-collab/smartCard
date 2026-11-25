@@ -1,6 +1,6 @@
 # Bảng lệnh APDU – Thẻ hội viên phòng gym
 
-> **Bản chốt (S03, 24/11/2026).** Sửa bảng này thì sửa luôn hằng số ở 3 chỗ: file này, `applet/GymApplet.java`, `desktop/src/main/java/gym/desktop/CardService.java`.
+> **Bản chốt (S03, 24/11/2026).** Sửa bảng này thì sửa luôn hằng số ở 3 chỗ: file này, `applet/src/gym/GymApplet.java`, `desktop/src/main/java/gym/desktop/CardService.java`.
 
 ## AID
 

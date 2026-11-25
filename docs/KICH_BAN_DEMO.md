@@ -4,8 +4,8 @@ Thời lượng khoảng 15 phút. Mỗi bước ghi thao tác, kết quả ph�
 
 ## Chuẩn bị (trước khi lên trình bày)
 
-1. Mở JCIDE, mở `C:\workspace\GymApplet\GymApplet.jcsln`, bấm **Build** rồi **Run** (Debug Shell hiện `You can send apdu with PC/SC interface now`).
-2. Xoá file `gym-card/desktop/gym.db` để CSDL trống.
+1. Mở JCIDE, mở `gym-card\applet\GymApplet.jcsln`, bấm **Build** rồi **Run** (Debug Shell hiện `You can send apdu with PC/SC interface now`).
+2. Làm CSDL trống: xoá file `gym-card/desktop/gym.db` (SQLite), hoặc nếu dùng MySQL thì chạy `DROP DATABASE gym; CREATE DATABASE gym CHARACTER SET utf8mb4;`.
 3. Mở NetBeans, chạy project `gym-card/desktop` (F6).
 4. Có sẵn ảnh `docs/anh-mau.jpg` để chọn làm ảnh hội viên.
 

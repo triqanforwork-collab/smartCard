@@ -14,7 +14,7 @@ import java.util.List;
 
 /**
  * Mọi giao tiếp với thẻ đi qua lớp này. Giao diện KHÔNG tự dựng APDU.
- * Hằng số PHẢI KHỚP applet/GymApplet.java và docs/APDU.md.
+ * Hằng số PHẢI KHỚP applet/src/gym/GymApplet.java và docs/APDU.md.
  */
 public class CardService {
 

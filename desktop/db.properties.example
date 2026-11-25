@@ -1,0 +1,6 @@
+# Muốn dùng MySQL: chép file này thành db.properties (cùng thư mục desktop) rồi điền mật khẩu.
+# Không có db.properties thì phần mềm dùng SQLite (file gym.db).
+# Tạo CSDL trước trong MySQL:  CREATE DATABASE gym CHARACTER SET utf8mb4;
+url=jdbc:mysql://localhost:3306/gym
+user=root
+password=

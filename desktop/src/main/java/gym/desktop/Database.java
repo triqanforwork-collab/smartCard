@@ -17,7 +17,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * CSDL SQLite của phòng gym (file gym.db cạnh chỗ chạy app, tự tạo khi chạy lần đầu).
+ * CSDL của phòng gym: MySQL nếu có file db.properties cạnh chỗ chạy app, không thì SQLite (file gym.db).
+ * Bảng được tự tạo khi chạy lần đầu.
  * Lưu bản sao thông tin hội viên để tra cứu, khóa công khai RSA của từng thẻ, lịch sử giao dịch,
  * lượt check-in, gói tập, tài khoản Admin và nhật ký hoạt động.
  * Không lưu PIN hay khóa AES: những thứ đó chỉ nằm trên thẻ.
@@ -59,30 +60,60 @@ public class Database implements AutoCloseable {
     /** Admin đang đăng nhập, được ghi vào nhật ký cùng mỗi hoạt động. */
     private String currentAdmin;
 
+    /** SQLite: một file, không cần cài server (dùng khi chạy test, hoặc khi không có db.properties). */
     public Database(String file) throws SQLException {
-        conn = DriverManager.getConnection("jdbc:sqlite:" + file);
+        this(DriverManager.getConnection("jdbc:sqlite:" + file));
+    }
+
+    /** MySQL, ví dụ url = jdbc:mysql://localhost:3306/gym (CSDL gym phải được tạo trước, utf8mb4). */
+    public Database(String url, String user, String password) throws SQLException {
+        this(DriverManager.getConnection(url, user, password));
+    }
+
+    /**
+     * Mở CSDL theo file db.properties (url, user, password) nếu có, không thì SQLite gym.db.
+     * Mật khẩu MySQL chỉ nằm trong db.properties, file này không đưa lên git.
+     */
+    public static Database open() throws SQLException, java.io.IOException {
+        java.nio.file.Path cfg = java.nio.file.Path.of("db.properties");
+        if (!java.nio.file.Files.exists(cfg)) return new Database("gym.db");
+        java.util.Properties p = new java.util.Properties();
+        try (java.io.Reader r = java.nio.file.Files.newBufferedReader(cfg)) {
+            p.load(r);
+        }
+        return new Database(p.getProperty("url"), p.getProperty("user"), p.getProperty("password", ""));
+    }
+
+    private final boolean mysql;
+
+    private Database(Connection c) throws SQLException {
+        conn = c;
+        mysql = conn.getMetaData().getDatabaseProductName().toLowerCase().contains("mysql");
+        // Khác nhau giữa hai CSDL: cột id tự tăng, kiểu bảng; còn lại dùng chung câu lệnh
+        String id = mysql ? "id INT AUTO_INCREMENT PRIMARY KEY" : "id INTEGER PRIMARY KEY AUTOINCREMENT";
+        String tail = mysql ? ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" : ")";
         try (Statement st = conn.createStatement()) {
-            st.execute("PRAGMA foreign_keys = ON");
+            if (!mysql) st.execute("PRAGMA foreign_keys = ON");
             st.execute("""
                     CREATE TABLE IF NOT EXISTS members (
-                        ma_hv      TEXT PRIMARY KEY,
+                        ma_hv      VARCHAR(20) PRIMARY KEY,
                         ho_ten     TEXT NOT NULL,
                         ngay_sinh  TEXT,
                         sdt        TEXT,
                         goi_tap    TEXT,
                         han_goi    TEXT,
                         public_key BLOB NOT NULL,
-                        created_at TEXT NOT NULL)""");
+                        created_at TEXT NOT NULL""" + tail);
             st.execute("""
                     CREATE TABLE IF NOT EXISTS packages (
-                        id       INTEGER PRIMARY KEY,
+                        %s,
                         ten      TEXT NOT NULL,
                         so_thang INTEGER NOT NULL,
-                        gia      INTEGER NOT NULL)""");
+                        gia      INTEGER NOT NULL""".formatted(id) + tail);
             st.execute("""
                     CREATE TABLE IF NOT EXISTS transactions (
-                        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                        ma_hv        TEXT NOT NULL REFERENCES members(ma_hv),
+                        %s,
+                        ma_hv        VARCHAR(20) NOT NULL,
                         loai         TEXT NOT NULL,
                         so_tien      INTEGER NOT NULL,
                         so_du_sau    INTEGER NOT NULL,
@@ -91,54 +122,55 @@ public class Database implements AutoCloseable {
                         nonce        BLOB NOT NULL,
                         chu_ky       BLOB NOT NULL,
                         hop_le       INTEGER NOT NULL,
-                        thoi_gian    TEXT NOT NULL)""");
+                        thoi_gian    TEXT NOT NULL,
+                        FOREIGN KEY (ma_hv) REFERENCES members(ma_hv)""".formatted(id) + tail);
             st.execute("""
                     CREATE TABLE IF NOT EXISTS admins (
-                        username   TEXT PRIMARY KEY,
+                        username   VARCHAR(50) PRIMARY KEY,
                         salt       BLOB NOT NULL,
                         hash       BLOB NOT NULL,
                         iterations INTEGER NOT NULL,
-                        created_at TEXT NOT NULL)""");
+                        created_at TEXT NOT NULL""" + tail);
             st.execute("""
                     CREATE TABLE IF NOT EXISTS lost_cards (
-                        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                        ma_hv      TEXT NOT NULL REFERENCES members(ma_hv),
+                        %s,
+                        ma_hv      VARCHAR(20) NOT NULL,
                         the_so     INTEGER NOT NULL,
                         public_key BLOB NOT NULL,
-                        thoi_gian  TEXT NOT NULL)""");
+                        thoi_gian  TEXT NOT NULL,
+                        FOREIGN KEY (ma_hv) REFERENCES members(ma_hv)""".formatted(id) + tail);
             st.execute("""
                     CREATE TABLE IF NOT EXISTS checkins (
-                        id        INTEGER PRIMARY KEY AUTOINCREMENT,
-                        ma_hv     TEXT NOT NULL REFERENCES members(ma_hv),
+                        %s,
+                        ma_hv     VARCHAR(20) NOT NULL,
                         the_so    INTEGER NOT NULL,
-                        thoi_gian TEXT NOT NULL)""");
+                        thoi_gian TEXT NOT NULL,
+                        FOREIGN KEY (ma_hv) REFERENCES members(ma_hv)""".formatted(id) + tail);
             st.execute("""
                     CREATE TABLE IF NOT EXISTS logs (
-                        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                        %s,
                         thoi_gian TEXT NOT NULL,
                         admin     TEXT,
                         ma_hv     TEXT,
                         hanh_dong TEXT NOT NULL,
                         chi_tiet  TEXT,
-                        canh_bao  INTEGER NOT NULL)""");
+                        canh_bao  INTEGER NOT NULL""".formatted(id) + tail);
             // Cột thêm sau: CSDL tạo từ bản cũ được bổ sung, dữ liệu giữ nguyên
             addColumnIfMissing("members", "the_so", "INTEGER NOT NULL DEFAULT 1");
-            addColumnIfMissing("members", "trang_thai", "TEXT NOT NULL DEFAULT '" + ACTIVE + "'");
+            addColumnIfMissing("members", "trang_thai", "VARCHAR(30) NOT NULL DEFAULT '" + ACTIVE + "'");
             addColumnIfMissing("transactions", "the_so", "INTEGER NOT NULL DEFAULT 1");
             addColumnIfMissing("packages", "dang_ban", "INTEGER NOT NULL DEFAULT 1");
             // Giá theo nghìn đồng, Admin sửa được ở màn Quản lý gói tập
             st.execute("""
-                    INSERT OR IGNORE INTO packages (id, ten, so_thang, gia) VALUES
+                    INSERT %s INTO packages (id, ten, so_thang, gia) VALUES
                         (1, 'Gói 1 tháng', 1, 300), (2, 'Gói 3 tháng', 3, 800),
-                        (3, 'Gói 6 tháng', 6, 1500), (4, 'Gói 12 tháng', 12, 2800)""");
+                        (3, 'Gói 6 tháng', 6, 1500), (4, 'Gói 12 tháng', 12, 2800)""".formatted(mysql ? "IGNORE" : "OR IGNORE"));
         }
     }
 
     private void addColumnIfMissing(String table, String column, String definition) throws SQLException {
-        try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery("PRAGMA table_info(" + table + ")")) {
-            while (rs.next()) {
-                if (rs.getString("name").equals(column)) return;
-            }
+        try (ResultSet rs = conn.getMetaData().getColumns(conn.getCatalog(), null, table, column)) {
+            if (rs.next()) return;
         }
         try (Statement st = conn.createStatement()) {
             st.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);

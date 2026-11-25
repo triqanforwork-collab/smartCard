@@ -1,69 +1,70 @@
 # Thẻ hội viên phòng gym – Smart Card 2026
 
-Applet Java Card + phần mềm quản lý trên máy tính (Swing, SQLite). Đầu việc theo dõi ở Google Sheet, tab *Kế hoạch hoàn thiện*.
+Applet Java Card lưu thông tin, ảnh và ví của hội viên (mã hóa AES bằng khóa sinh từ PIN, chữ ký RSA cho mỗi giao dịch)
+và phần mềm quầy lễ tân trên máy tính (Java Swing, CSDL SQLite hoặc MySQL).
 
-## Cấu trúc và ai sửa file nào
+Hướng dẫn chi tiết từng màn hình: [docs/HDSD_The_hoi_vien_Gym.docx](docs/HDSD_The_hoi_vien_Gym.docx).
+Kịch bản demo: [docs/KICH_BAN_DEMO.md](docs/KICH_BAN_DEMO.md). Bảng lệnh APDU: [docs/APDU.md](docs/APDU.md).
+
+## Cấu trúc
 
 ```
 gym-card/
-├── docs/APDU.md                       bảng lệnh APDU, định dạng dữ liệu, mã lỗi      Quân (C03), Tài (C04)
-├── applet/GymApplet.java              applet chạy trên thẻ (JCIDE, Java Card 2.2.2)   Quân: PIN · Tài: INIT, thông tin, ảnh
-└── desktop/                           phần mềm trên máy tính (NetBeans, Maven)
-    └── src/main/java/gym/desktop/
-        ├── CardService.java           mọi lệnh gửi tới thẻ                            Tuấn Anh (T02, T03, T04)
-        ├── MemberInfo.java            ghép/tách thông tin hội viên
-        ├── MemberService.java         phát hành, đăng nhập (thẻ thật/thẻ mất), đối chiếu số dư, PIN, cấp lại thẻ, check-in
-        ├── WalletService.java         nạp tiền, thanh toán gói, kiểm tra chữ ký RSA
-        ├── Database.java              SQLite: hội viên, giao dịch, gói tập, Admin, nhật ký, check-in, thống kê
-        ├── MainFrame.java             cửa sổ chính, quyền Admin, tự đăng xuất Admin sau 5 phút
-        └── screens/                   các màn hình                                    Quyền (G01–G05)
+├── applet/                 project JCIDE (mở GymApplet.jcsln), Java Card 2.2.2
+│   └── src/gym/GymApplet.java
+├── desktop/                phần mềm máy tính (Maven, mở bằng NetBeans)
+│   ├── db.properties.example   mẫu cấu hình MySQL
+│   └── src/main/java/gym/desktop/
+│       ├── CardService.java     gửi lệnh APDU tới thẻ
+│       ├── MemberService.java   phát hành, đăng nhập, đối chiếu số dư, báo mất / cấp lại, check-in
+│       ├── WalletService.java   nạp tiền, thanh toán gói, kiểm tra chữ ký RSA
+│       ├── Database.java        CSDL: hội viên, giao dịch, gói tập, Admin, nhật ký, check-in
+│       ├── MainFrame.java       cửa sổ chính, quyền Admin
+│       └── screens/             16 màn hình (JPanel Form)
+├── tools/                  chương trình kiểm thử
+└── docs/                   HDSD, kịch bản demo, bảng APDU
 ```
 
-**Trạng thái:** đã làm xong cả applet (15 lệnh) và phần mềm (16 màn hình). Kiểm thử: `tools/AppletTest.java` 100/100, `tools/ScenarioTest.java` 54/54 + 9/9 (cách chạy ở `docs/KICH_BAN_DEMO.md`).
+## Cài đặt và chạy
 
-## Cài đặt (mỗi người làm 1 lần)
+Cần: JDK 17+, NetBeans, JCIDE (cài vào `C:\JavaCardKit`). Thư mục `gym-card` phải nằm ở đường dẫn không dấu, không dấu cách.
 
-1. **JCIDE:** vào **Tool → Options → Run/Debug**, tick ☑ **JCVM Started by IDE** và ☑ **Enable PCSC Interface**.
-2. **NetBeans** (bản mới, chạy được với JDK 17 trở lên). NetBeans có sẵn Maven, không cần cài thêm.
+1. **Thẻ ảo:** trong JCIDE vào **Tool → Options → Run/Debug**, tick **JCVM Started by IDE** và **Enable PCSC Interface** (làm 1 lần).
+   Mở `applet/GymApplet.jcsln`, bấm **Ctrl+F7** rồi **Run**, đợi dòng `You can send apdu with PC/SC interface now`.
+2. **Phần mềm:** NetBeans → **Open Project** → `desktop`, bấm **F6**.
+   Chọn đầu đọc **JAVACOS Virtual Contact Reader 0** → **Kết nối**. Lần đầu bấm **Quản trị** để tạo tài khoản Admin.
 
-## Chạy thử
+Mỗi lần bấm Run trong JCIDE là một thẻ trắng mới.
 
-### 1. Applet trong JCIDE
+### Dùng MySQL (tùy chọn)
 
-Project JCIDE nằm ở `C:\workspace\GymApplet` (đường dẫn không dấu, không dấu cách, nếu không JCIDE báo lỗi build).
+Mặc định dữ liệu nằm trong file `desktop/gym.db` (SQLite, tự tạo). Muốn dùng MySQL:
 
-1. Mở `C:\workspace\GymApplet\GymApplet.jcsln` bằng JCIDE.
-2. Cấu hình đã đặt sẵn, chỉ cần kiểm tra nếu build lỗi (chuột phải project → **Properties**):
-   - **JCkit Configuration → Conveter:** `FTSAFE:ft305_for_classic` (JCIDE bản mới không còn `ft222`).
-   - **Library Option:** có `java_card_kit-2_2_2`.
-   - Package `gym` / `47594D43415244`, applet `GymApplet` / `47594D4341524401`.
-3. Chọn project, bấm **Ctrl+F7** để build.
-4. Bấm **Run**, đợi Debug Shell hiện `You can send apdu with PC/SC interface now`.
-   Nếu JCIDE hỏi *"You haven't added any package…"*: bấm OK → **Add package** chọn `gym` → chọn dòng `gym` → **Install applet** chọn `GymApplet` → Run.
-5. Thử trong Debug Shell:
-   ```
-   /select 47594D4341524401      -> 90 00
-   /send B001000000              -> 00 90 00
-   ```
+1. `CREATE DATABASE gym CHARACTER SET utf8mb4;`
+2. Chép `desktop/db.properties.example` thành `desktop/db.properties`, điền mật khẩu.
+3. Chạy phần mềm, các bảng tự tạo. Xóa `db.properties` là quay về SQLite.
 
-**Quy trình sửa applet:** sửa trong JCIDE → Build → Run → chép lại vào `applet/GymApplet.java` để đưa lên GitHub.
+`db.properties` đã nằm trong `.gitignore`. Dữ liệu trong `gym.db` không tự chuyển sang MySQL.
 
-### 2. Phần mềm trong NetBeans
+## Kiểm thử
 
-1. **File → Open Project**, chọn thư mục `gym-card/desktop` (NetBeans nhận ra đây là project Maven).
-2. Bấm **Run** (F6). Lần đầu NetBeans tải thư viện FlatLaf nên hơi lâu.
-3. Chọn đầu đọc **JAVACOS Virtual Contact Reader 0**, bấm **Kết nối**.
-   - Thẻ trắng: cần Admin đăng nhập (nút **Quản trị**) rồi app chuyển sang màn **Khởi tạo thẻ**.
-   - Thẻ đã phát hành: sang màn nhập PIN. Các bước demo đầy đủ ở `docs/KICH_BAN_DEMO.md`.
+| Lệnh (chạy trong `gym-card`) | Kết quả |
+|---|---|
+| `java tools/AppletTest.java` | 100/100, 15 lệnh APDU (cần thẻ trắng) |
+| `java -cp "%CP%" tools/ScenarioTest.java` | 54/54, kịch bản đầy đủ qua các lớp dịch vụ (cần thẻ trắng) |
+| `java -cp "%CP%" tools/ScenarioTest.java reissue` | 9/9, cấp lại thẻ (bấm Run lại trong JCIDE trước) |
+| `java -cp "%CP%" tools/DbCheck.java [url user mật_khẩu]` | 14/14, lớp CSDL, không cần thẻ; có url thì chạy trên MySQL (tên CSDL phải chứa `test`) |
+| `java tools/FakeCard.java HV100 "Lê Văn An" 1234` | tạo thẻ giả để demo phát hiện thẻ giả |
 
-**Giao diện làm bằng kéo thả:** mọi màn trong `screens/` đều là JPanel Form (`xxxForm.java` + `xxxForm.form`); mở trong NetBeans sẽ có tab **Design** để sửa giao diện.
-- Không sửa tay phần code màu xám (`initComponents`), NetBeans sẽ ghi đè.
-- Làm màn mới: chuột phải package `gym.desktop.screens` → **New → JPanel Form** (không dùng JFrame Form, vì app chỉ có một cửa sổ), rồi làm theo 3 bước ghi ở đầu file `PinForm.java`.
-- Đưa lên GitHub thì đưa cả file `.form` lẫn `.java`.
+`%CP%` (sau khi build trong NetBeans):
+```
+set M=%USERPROFILE%/.m2/repository
+set CP=desktop/target/classes;%M%/org/xerial/sqlite-jdbc/3.46.1.0/sqlite-jdbc-3.46.1.0.jar;%M%/org/slf4j/slf4j-api/1.7.36/slf4j-api-1.7.36.jar;%M%/com/mysql/mysql-connector-j/8.4.0/mysql-connector-j-8.4.0.jar
+```
 
-## Quy tắc chung
+## Quy tắc khi sửa code
 
-- **Đổi lệnh APDU thì sửa 3 chỗ cùng lúc:** `docs/APDU.md`, `GymApplet.java`, `CardService.java`.
-- **Applet viết comment không dấu**, vì JCIDE biên dịch bằng encoding windows-1252. Phần desktop viết có dấu bình thường.
-- **Applet chỉ dùng `byte` và `short`** (Java Card 2.2.2 không có `int`, `String`). Phép cộng trừ phải ép kiểu: `(short) (a + b)`.
-- **Giao diện không tự dựng APDU,** chỉ gọi hàm trong `CardService`.
+- Đổi lệnh APDU thì sửa cùng lúc `docs/APDU.md`, `GymApplet.java`, `CardService.java`.
+- Applet: comment không dấu (JCIDE dùng windows-1252), chỉ dùng `byte`/`short`, ép kiểu `(short) (a + b)`.
+- Giao diện không tự dựng APDU, chỉ gọi `CardService` / các lớp Service.
+- Màn hình sửa bằng tab **Design** của NetBeans; không sửa tay `initComponents`; commit cả `.form` lẫn `.java`.

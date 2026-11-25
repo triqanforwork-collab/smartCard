@@ -3,3 +3,12 @@ nbproject/private/
 *.class
 *.cap
 gym.db
+db.properties
+# JCIDE: file tự sinh khi build/chạy, cấu hình riêng từng máy
+applet/bin/
+applet/.jcide/
+applet/.jcideslndata/
+applet/*Info.xml
+applet/stateInfo.xml1
+applet/debugConfig.xml
+applet/Local*Property.xml

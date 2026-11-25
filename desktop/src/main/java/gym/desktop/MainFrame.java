@@ -131,9 +131,9 @@ public class MainFrame extends JFrame {
         FlatLightLaf.setup();
         SwingUtilities.invokeLater(() -> {
             try {
-                new MainFrame(new Database("gym.db")).setVisible(true);
-            } catch (SQLException e) {
-                JOptionPane.showMessageDialog(null, "Không mở được CSDL gym.db: " + e.getMessage(),
+                new MainFrame(Database.open()).setVisible(true);
+            } catch (SQLException | java.io.IOException e) {
+                JOptionPane.showMessageDialog(null, "Không mở được CSDL (gym.db, hoặc MySQL theo db.properties): " + e.getMessage(),
                         "Lỗi", JOptionPane.ERROR_MESSAGE);
             }
         });

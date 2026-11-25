@@ -1,0 +1,11 @@
+<JavaCardSolution name="GymApplet">
+    <JavaCardProjects>
+        <JavaCardProject path="GymApplet.jcproj" />
+    </JavaCardProjects>
+    <Build>
+        <BuildDependon />
+    </Build>
+    <Platform>
+        <ChipPack Name="JAVACOS" />
+    </Platform>
+</JavaCardSolution>
