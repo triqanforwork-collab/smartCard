@@ -57,7 +57,7 @@ public class TopUpForm extends javax.swing.JPanel {
 
         lblAmount.setText("Số tiền nạp (nghìn đồng)");
 
-        lblAdminPin.setText("PIN Admin của thẻ");
+        lblAdminPin.setText("PIN Admin");
 
         btnBack.setText("Quay lại");
         btnBack.addActionListener(new java.awt.event.ActionListener() {
@@ -148,7 +148,7 @@ public class TopUpForm extends javax.swing.JPanel {
             app.requireAdmin();
             long amount = Input.amount(txtAmount);
             String adminPin = Input.pin(txtAdminPin, null, "PIN Admin");
-            CardService.TxResult r = app.wallet.topUp(app.member.maHV, amount, adminPin);
+            CardService.TxResult r = app.wallet.topUp(app.member.maHV, amount, adminPin, app::askSecret);
             txtAmount.setText("");
             refresh();
             JOptionPane.showMessageDialog(this, "Đã nạp " + amount + " nghìn đồng. Số dư: " + r.balance()

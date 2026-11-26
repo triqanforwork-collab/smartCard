@@ -22,7 +22,7 @@ public class CardService {
     static final byte[] APPLET_AID = {0x47, 0x59, 0x4D, 0x43, 0x41, 0x52, 0x44, 0x01};
     static final int CLA = 0xB0;
     static final int INS_GET_STATUS = 0x01, INS_INIT = 0x10,
-            INS_VERIFY_PIN = 0x20, INS_CHANGE_PIN = 0x21, INS_UNBLOCK = 0x22, INS_RESET_PIN = 0x23,
+            INS_VERIFY_PIN = 0x20, INS_CHANGE_PIN = 0x21, INS_UNBLOCK = 0x22, INS_RESET_PIN = 0x23, INS_CHANGE_ADMIN_PIN = 0x24,
             INS_GET_INFO = 0x30, INS_UPDATE_INFO = 0x31, INS_GET_PHOTO = 0x32, INS_SET_PHOTO = 0x33,
             INS_GET_BALANCE = 0x40, INS_TOPUP = 0x41, INS_PAY = 0x42,
             INS_GET_PUBKEY = 0x50, INS_AUTH = 0x51;
@@ -139,6 +139,11 @@ public class CardService {
     /** RESET_PIN: Admin đặt PIN mới cho hội viên quên PIN; dữ liệu trên thẻ giữ nguyên. */
     public void resetPin(String adminPin, String newPin) throws CardException, CardError {
         send(INS_RESET_PIN, 0, 0, concat(withLength(adminPin), ascii(newPin)), 0);
+    }
+
+    /** Đổi PIN Admin trên thẻ: thẻ mở khóa AES bằng PIN Admin cũ rồi bọc lại theo PIN Admin mới. */
+    public void changeAdminPin(String oldAdminPin, String newAdminPin) throws CardException, CardError {
+        send(INS_CHANGE_ADMIN_PIN, 0, 0, concat(withLength(oldAdminPin), ascii(newAdminPin)), 0);
     }
 
     // ==================== Thông tin, ảnh ====================

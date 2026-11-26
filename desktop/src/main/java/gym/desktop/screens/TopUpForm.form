@@ -123,7 +123,7 @@
     </Component>
     <Component class="javax.swing.JLabel" name="lblAdminPin">
       <Properties>
-        <Property name="text" type="java.lang.String" value="PIN Admin của thẻ"/>
+        <Property name="text" type="java.lang.String" value="PIN Admin"/>
       </Properties>
     </Component>
     <Component class="javax.swing.JPasswordField" name="txtAdminPin">

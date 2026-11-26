@@ -5,8 +5,10 @@ import gym.desktop.MemberInfo;
 import javax.swing.JOptionPane;
 
 /**
- * Admin phát hành thẻ mới: nhập thông tin, ảnh, PIN ban đầu và PIN Admin.
- * Nếu đang cấp lại thẻ (app.reissue khác null) thì điền sẵn thông tin hội viên đã báo mất thẻ.
+ * Admin phát hành thẻ mới: nhập thông tin, ảnh, PIN ban đầu và PIN Admin chung của phòng gym
+ * (phần mềm kiểm tra với bản băm trong CSDL trước khi ghi lên thẻ).
+ * Gói tập và hạn gói không nhập ở đây: được ghi khi hội viên thanh toán gia hạn lần đầu.
+ * Nếu đang cấp lại thẻ (app.reissue khác null) thì điền sẵn thông tin và giữ nguyên gói, hạn gói của hội viên.
  */
 public class InitCardForm extends javax.swing.JPanel {
     private final MainFrame app;
@@ -36,18 +38,12 @@ public class InitCardForm extends javax.swing.JPanel {
         txtNgaySinh = new javax.swing.JTextField();
         lblSdt = new javax.swing.JLabel();
         txtSdt = new javax.swing.JTextField();
-        lblGoiTap = new javax.swing.JLabel();
-        txtGoiTap = new javax.swing.JTextField();
-        lblHanGoi = new javax.swing.JLabel();
-        txtHanGoi = new javax.swing.JTextField();
         lblPin = new javax.swing.JLabel();
         txtPin = new javax.swing.JPasswordField();
         lblPin2 = new javax.swing.JLabel();
         txtPin2 = new javax.swing.JPasswordField();
         lblAdminPin = new javax.swing.JLabel();
         txtAdminPin = new javax.swing.JPasswordField();
-        lblAdminPin2 = new javax.swing.JLabel();
-        txtAdminPin2 = new javax.swing.JPasswordField();
         lblPhoto = new javax.swing.JLabel();
         btnPhoto = new javax.swing.JButton();
         btnBack = new javax.swing.JButton();
@@ -70,17 +66,11 @@ public class InitCardForm extends javax.swing.JPanel {
 
         lblSdt.setText("Số điện thoại");
 
-        lblGoiTap.setText("Gói tập");
-
-        lblHanGoi.setText("Hạn gói (dd/mm/yyyy)");
-
         lblPin.setText("PIN ban đầu");
 
         lblPin2.setText("Nhập lại PIN");
 
-        lblAdminPin.setText("PIN Admin");
-
-        lblAdminPin2.setText("Nhập lại PIN Admin");
+        lblAdminPin.setText("PIN Admin của phòng gym");
 
         lblPhoto.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)));
         lblPhoto.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
@@ -121,24 +111,18 @@ public class InitCardForm extends javax.swing.JPanel {
                             .addComponent(lblHoTen)
                             .addComponent(lblNgaySinh)
                             .addComponent(lblSdt)
-                            .addComponent(lblGoiTap)
-                            .addComponent(lblHanGoi)
                             .addComponent(lblPin)
                             .addComponent(lblPin2)
-                            .addComponent(lblAdminPin)
-                            .addComponent(lblAdminPin2))
+                            .addComponent(lblAdminPin))
                         .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(txtMaHV, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtHoTen, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtNgaySinh, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtSdt, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(txtGoiTap, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(txtHanGoi, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtPin, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtPin2, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(txtAdminPin, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(txtAdminPin2, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                            .addComponent(txtAdminPin, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE))))
                 .addGap(24, 24, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(lblPhoto, javax.swing.GroupLayout.PREFERRED_SIZE, 110, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -176,14 +160,6 @@ public class InitCardForm extends javax.swing.JPanel {
                             .addComponent(txtSdt, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addGap(10, 10, 10)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(lblGoiTap)
-                            .addComponent(txtGoiTap, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(10, 10, 10)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(lblHanGoi)
-                            .addComponent(txtHanGoi, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(10, 10, 10)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(lblPin)
                             .addComponent(txtPin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                         .addGap(10, 10, 10)
@@ -193,11 +169,7 @@ public class InitCardForm extends javax.swing.JPanel {
                         .addGap(10, 10, 10)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(lblAdminPin)
-                            .addComponent(txtAdminPin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(10, 10, 10)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(lblAdminPin2)
-                            .addComponent(txtAdminPin2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addComponent(txtAdminPin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(lblPhoto, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -219,7 +191,6 @@ public class InitCardForm extends javax.swing.JPanel {
         txtPin.setText("");   // không giữ PIN của lần phát hành trước
         txtPin2.setText("");
         txtAdminPin.setText("");
-        txtAdminPin2.setText("");
         photoBytes = null;
         MainFrame.showPhoto(lblPhoto, null);
     }//GEN-LAST:event_formComponentShown
@@ -247,7 +218,7 @@ public class InitCardForm extends javax.swing.JPanel {
             MemberInfo m = member();
             m.validate();
             String pin = Input.pin(txtPin, txtPin2, "PIN");
-            String admin = Input.pin(txtAdminPin, txtAdminPin2, "PIN Admin");
+            String admin = Input.pin(txtAdminPin, null, "PIN Admin");
             if (pin.equals(admin)) throw new IllegalArgumentException("PIN Admin phải khác PIN của hội viên");
             if (app.reissue != null) {
                 // Cấp lại thẻ: thay khóa công khai, chuyển số dư theo CSDL sang thẻ mới (xem MemberService.reissueCard)
@@ -264,18 +235,22 @@ public class InitCardForm extends javax.swing.JPanel {
             app.go(MainFrame.INFO);
         } catch (Exception e) {
             app.error(e);
+        } finally {
+            txtAdminPin.setText("");
         }
     }//GEN-LAST:event_btnInitActionPerformed
 
-    /** Gom 6 ô thông tin thành MemberInfo. */
+    /** Gom 4 ô thông tin thành MemberInfo; cấp lại thẻ thì giữ gói tập, hạn gói đang có. */
     private MemberInfo member() {
         MemberInfo m = new MemberInfo();
+        if (app.reissue != null) {
+            m.goiTap = app.reissue.goiTap;
+            m.hanGoi = app.reissue.hanGoi;
+        }
         m.maHV = txtMaHV.getText().trim();
         m.hoTen = txtHoTen.getText().trim();
         m.ngaySinh = txtNgaySinh.getText().trim();
         m.sdt = txtSdt.getText().trim();
-        m.goiTap = txtGoiTap.getText().trim();
-        m.hanGoi = txtHanGoi.getText().trim();
         return m;
     }
 
@@ -284,8 +259,6 @@ public class InitCardForm extends javax.swing.JPanel {
         txtHoTen.setText(m.hoTen);
         txtNgaySinh.setText(m.ngaySinh);
         txtSdt.setText(m.sdt);
-        txtGoiTap.setText(m.goiTap);
-        txtHanGoi.setText(m.hanGoi);
     }
 
 
@@ -294,9 +267,6 @@ public class InitCardForm extends javax.swing.JPanel {
     private javax.swing.JButton btnInit;
     private javax.swing.JButton btnPhoto;
     private javax.swing.JLabel lblAdminPin;
-    private javax.swing.JLabel lblAdminPin2;
-    private javax.swing.JLabel lblGoiTap;
-    private javax.swing.JLabel lblHanGoi;
     private javax.swing.JLabel lblHoTen;
     private javax.swing.JLabel lblMaHV;
     private javax.swing.JLabel lblNgaySinh;
@@ -306,9 +276,6 @@ public class InitCardForm extends javax.swing.JPanel {
     private javax.swing.JLabel lblSdt;
     private javax.swing.JLabel lblTitle;
     private javax.swing.JPasswordField txtAdminPin;
-    private javax.swing.JPasswordField txtAdminPin2;
-    private javax.swing.JTextField txtGoiTap;
-    private javax.swing.JTextField txtHanGoi;
     private javax.swing.JTextField txtHoTen;
     private javax.swing.JTextField txtMaHV;
     private javax.swing.JTextField txtNgaySinh;

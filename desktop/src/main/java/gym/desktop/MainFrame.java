@@ -24,11 +24,12 @@ public class MainFrame extends JFrame {
             INFO = "Thông tin hội viên", CHANGE_PIN = "Đổi mã PIN", UNBLOCK = "Mở khóa thẻ / Đặt lại PIN",
             TOPUP = "Nạp tiền", PAY = "Gia hạn gói tập", HISTORY = "Lịch sử giao dịch", MEMBERS = "Danh sách hội viên",
             ADMIN_LOGIN = "Đăng nhập Admin", ADMIN_HOME = "Quản trị", CHECKIN = "Check-in",
-            LOGS = "Nhật ký hoạt động", PACKAGES = "Quản lý gói tập", ADMIN_PASSWORD = "Đổi mật khẩu Admin";
+            LOGS = "Nhật ký hoạt động", PACKAGES = "Quản lý gói tập", ADMIN_PASSWORD = "Đổi mật khẩu Admin",
+            ADMIN_PIN = "Đổi PIN Admin";
 
     /** Các màn chỉ dành cho Admin: tự đăng xuất Admin thì rời khỏi các màn này. */
     static final java.util.Set<String> ADMIN_SCREENS = java.util.Set.of(INIT, UNBLOCK, TOPUP, MEMBERS, ADMIN_HOME,
-            LOGS, PACKAGES, ADMIN_PASSWORD, HISTORY);
+            LOGS, PACKAGES, ADMIN_PASSWORD, HISTORY, ADMIN_PIN);
     /** Không thao tác chuột / bàn phím quá số phút này thì tự đăng xuất Admin. */
     public static final int ADMIN_IDLE_MINUTES = 5;
     /** Thời gian chờ tính bằng ms; chạy với -Dgym.adminIdleMs=20000 để thử nhanh. */
@@ -62,7 +63,7 @@ public class MainFrame extends JFrame {
                 new InfoForm(this), new ChangePinForm(this), new UnblockForm(this), new TopUpForm(this),
                 new PayForm(this), new HistoryForm(this), new MembersForm(this), new AdminLoginForm(this),
                 new AdminHomeForm(this), new CheckInForm(this), new LogsForm(this), new PackagesForm(this),
-                new AdminPasswordForm(this)};
+                new AdminPasswordForm(this), new AdminPinForm(this)};
         for (JPanel s : screens) root.add(s, s.getName());
 
         // Tự đăng xuất Admin khi không thao tác: ghi lại lần cuối dùng chuột / bàn phím, 15 giây kiểm tra một lần
@@ -119,6 +120,50 @@ public class MainFrame extends JFrame {
         if (admin == null) {
             throw new IllegalStateException("Chức năng này cần Admin đăng nhập (màn Kết nối thẻ → Quản trị)");
         }
+    }
+
+    /**
+     * Sau khi Admin đăng nhập (hoặc vừa tạo tài khoản): nếu phòng gym chưa có PIN Admin chung thì bắt đặt ngay;
+     * nếu tài khoản chưa có mã khôi phục (tạo từ bản cũ) thì sinh mã và hiện cho Admin ghi lại.
+     */
+    public void afterAdminLogin() throws SQLException {
+        if (!db.hasRecoveryCode(admin)) showRecoveryCode(admin, db.newRecoveryCode(admin));
+        while (db.adminPinVersion() == 0) {
+            JPasswordField p1 = new JPasswordField(10), p2 = new JPasswordField(10);
+            Object[] form = {"Phòng gym chưa có PIN Admin. Mọi thẻ phát hành sau đây dùng chung PIN này\n"
+                    + "(nạp tiền, mở khóa, đặt lại PIN, cấp lại thẻ). PIN gồm 4–8 chữ số.", "PIN Admin:", p1, "Nhập lại PIN Admin:", p2};
+            if (JOptionPane.showConfirmDialog(this, form, "Đặt PIN Admin của phòng gym", JOptionPane.OK_CANCEL_OPTION,
+                    JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) {
+                JOptionPane.showMessageDialog(this, "Chưa đặt PIN Admin thì chưa phát hành thẻ được. Đặt sau ở Quản trị → Đổi PIN Admin.");
+                return;
+            }
+            String a = new String(p1.getPassword()), b = new String(p2.getPassword());
+            if (!a.matches("\\d{4,8}") || !a.equals(b)) {
+                JOptionPane.showMessageDialog(this, "PIN Admin phải gồm 4–8 chữ số và hai ô phải khớp nhau", "Lỗi", JOptionPane.ERROR_MESSAGE);
+                continue;
+            }
+            db.setAdminPin(a);
+            db.log(null, "Đặt PIN Admin của phòng gym", "Phiên bản 1", false);
+        }
+    }
+
+    /** Hiện mã khôi phục (chỉ một lần): ô chữ chọn được để chép. */
+    public void showRecoveryCode(String user, String code) {
+        JTextField f = new JTextField(code);
+        f.setEditable(false);
+        f.setFont(f.getFont().deriveFont(Font.BOLD, 18f));
+        Object[] msg = {"Mã khôi phục của tài khoản " + user + ":", f,
+                "Ghi lại và cất ở nơi an toàn. Mã chỉ hiện MỘT LẦN, dùng khi quên mật khẩu hoặc quên PIN Admin.",
+                "Mỗi lần dùng xong, phần mềm cấp mã mới."};
+        JOptionPane.showMessageDialog(this, msg, "Mã khôi phục", JOptionPane.WARNING_MESSAGE);
+    }
+
+    /** Hỏi một mã bí mật (PIN cũ...) bằng ô ẩn ký tự; bấm Hủy thì trả null. */
+    public String askSecret(String message) {
+        JPasswordField f = new JPasswordField(10);
+        Object[] form = {message, f};
+        return JOptionPane.showConfirmDialog(this, form, "Xác nhận", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION ? new String(f.getPassword()) : null;
     }
 
     public void error(Exception e) {

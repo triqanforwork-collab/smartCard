@@ -32,7 +32,8 @@ Cần: JDK 17+, NetBeans, JCIDE (cài vào `C:\JavaCardKit`). Thư mục `gym-ca
 1. **Thẻ ảo:** trong JCIDE vào **Tool → Options → Run/Debug**, tick **JCVM Started by IDE** và **Enable PCSC Interface** (làm 1 lần).
    Mở `applet/GymApplet.jcsln`, bấm **Ctrl+F7** rồi **Run**, đợi dòng `You can send apdu with PC/SC interface now`.
 2. **Phần mềm:** NetBeans → **Open Project** → `desktop`, bấm **F6**.
-   Chọn đầu đọc **JAVACOS Virtual Contact Reader 0** → **Kết nối**. Lần đầu bấm **Quản trị** để tạo tài khoản Admin.
+   Chọn đầu đọc **JAVACOS Virtual Contact Reader 0** → **Kết nối**. Lần đầu bấm **Quản trị** để tạo tài khoản Admin
+   và đặt PIN Admin chung của phòng gym; phần mềm hiện **mã khôi phục** (dùng khi quên mật khẩu / PIN Admin), nhớ chép lại.
 
 Mỗi lần bấm Run trong JCIDE là một thẻ trắng mới.
 
@@ -50,10 +51,10 @@ Mặc định dữ liệu nằm trong file `desktop/gym.db` (SQLite, tự tạo)
 
 | Lệnh (chạy trong `gym-card`) | Kết quả |
 |---|---|
-| `java tools/AppletTest.java` | 100/100, 15 lệnh APDU (cần thẻ trắng) |
-| `java -cp "%CP%" tools/ScenarioTest.java` | 54/54, kịch bản đầy đủ qua các lớp dịch vụ (cần thẻ trắng) |
+| `java tools/AppletTest.java` | 117/117, 16 lệnh APDU (cần thẻ trắng) |
+| `java -cp "%CP%" tools/ScenarioTest.java` | 64/64, kịch bản đầy đủ qua các lớp dịch vụ (cần thẻ trắng) |
 | `java -cp "%CP%" tools/ScenarioTest.java reissue` | 9/9, cấp lại thẻ (bấm Run lại trong JCIDE trước) |
-| `java -cp "%CP%" tools/DbCheck.java [url user mật_khẩu]` | 14/14, lớp CSDL, không cần thẻ; có url thì chạy trên MySQL (tên CSDL phải chứa `test`) |
+| `java -cp "%CP%" tools/DbCheck.java [url user mật_khẩu]` | 25/25, lớp CSDL, không cần thẻ; có url thì chạy trên MySQL (tên CSDL phải chứa `test`) |
 | `java tools/FakeCard.java HV100 "Lê Văn An" 1234` | tạo thẻ giả để demo phát hiện thẻ giả |
 
 `%CP%` (sau khi build trong NetBeans):

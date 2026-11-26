@@ -131,7 +131,7 @@ public class UnblockForm extends javax.swing.JPanel {
             app.requireAdmin();
             String admin = Input.pin(txtAdmin, null, "PIN Admin");
             String newPin = Input.pin(txtNewPin, txtNewPin2, "PIN mới");
-            app.members.resetPin(admin, newPin);
+            app.members.resetPin(admin, newPin, app::askSecret);
             JOptionPane.showMessageDialog(this, "Đã đặt lại PIN. Hội viên đăng nhập bằng PIN mới.");
             app.go(MainFrame.PIN);
         } catch (Exception e) {
@@ -144,7 +144,7 @@ public class UnblockForm extends javax.swing.JPanel {
     private void btnUnblockActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnUnblockActionPerformed
         try {
             app.requireAdmin();
-            app.members.unblock(Input.pin(txtAdmin, null, "PIN Admin"));
+            app.members.unblock(Input.pin(txtAdmin, null, "PIN Admin"), app::askSecret);
             JOptionPane.showMessageDialog(this, "Đã mở khóa thẻ. Hãy nhập lại PIN.");
             app.go(MainFrame.PIN);
         } catch (Exception e) {

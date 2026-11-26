@@ -28,9 +28,13 @@ public class WalletService {
         return card.getBalance();
     }
 
-    /** Nạp tiền (nghìn đồng). Thẻ đòi PIN Admin; phần mềm còn đòi Admin đăng nhập (kiểm tra ở màn hình). */
-    public CardService.TxResult topUp(String maHV, long amount, String adminPin)
+    /**
+     * Nạp tiền (nghìn đồng). Thẻ đòi PIN Admin; phần mềm còn đòi Admin đăng nhập (kiểm tra ở màn hình).
+     * PIN Admin được kiểm tra với CSDL trước (xem MemberService.prepareAdminPin).
+     */
+    public CardService.TxResult topUp(String maHV, long amount, String adminPin, java.util.function.UnaryOperator<String> askOldPin)
             throws CardException, CardService.CardError, SQLException {
+        new MemberService(card, db).prepareAdminPin(maHV, adminPin, askOldPin);
         return deposit(maHV, amount, adminPin, Database.TOPUP, "Nạp tiền tại quầy");
     }
 

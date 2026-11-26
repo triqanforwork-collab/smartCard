@@ -33,6 +33,7 @@ public class PinForm extends javax.swing.JPanel {
         lblTitle = new javax.swing.JLabel();
         lblPin = new javax.swing.JLabel();
         txtPin = new javax.swing.JPasswordField();
+        btnBack = new javax.swing.JButton();
         btnKhoa = new javax.swing.JButton();
         btnXacNhan = new javax.swing.JButton();
 
@@ -40,6 +41,13 @@ public class PinForm extends javax.swing.JPanel {
         lblTitle.setText("Nhập mã PIN");
 
         lblPin.setText("Mã PIN");
+
+        btnBack.setText("Quay lại");
+        btnBack.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnBackActionPerformed(evt);
+            }
+        });
 
         btnKhoa.setText("Thẻ bị khóa / quên PIN?");
         btnKhoa.addActionListener(new java.awt.event.ActionListener() {
@@ -72,6 +80,8 @@ public class PinForm extends javax.swing.JPanel {
                 .addGap(24, 24, Short.MAX_VALUE))
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addGap(0, 0, Short.MAX_VALUE)
+                .addComponent(btnBack)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnKhoa)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnXacNhan)
@@ -88,12 +98,20 @@ public class PinForm extends javax.swing.JPanel {
                     .addComponent(txtPin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(24, 24, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(btnBack)
                     .addComponent(btnKhoa)
                     .addComponent(btnXacNhan))
                 .addGap(20, 20, 20))
         );
     }
     // </editor-fold>//GEN-END:initComponents
+
+    private void btnBackActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBackActionPerformed
+        txtPin.setText("");
+        app.member = null;
+        app.card.disconnect();
+        app.go(MainFrame.CONNECT);
+    }//GEN-LAST:event_btnBackActionPerformed
 
     private void btnKhoaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnKhoaActionPerformed
         try {
@@ -125,6 +143,7 @@ public class PinForm extends javax.swing.JPanel {
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btnBack;
     private javax.swing.JButton btnKhoa;
     private javax.swing.JButton btnXacNhan;
     private javax.swing.JLabel lblPin;

@@ -25,6 +25,7 @@ public class GymApplet extends Applet {
     static final byte INS_CHANGE_PIN  = (byte) 0x21;
     static final byte INS_UNBLOCK     = (byte) 0x22;
     static final byte INS_RESET_PIN   = (byte) 0x23;
+    static final byte INS_CHANGE_ADMIN_PIN = (byte) 0x24;
     static final byte INS_GET_INFO    = (byte) 0x30;
     static final byte INS_UPDATE_INFO = (byte) 0x31;
     static final byte INS_GET_PHOTO   = (byte) 0x32;
@@ -135,6 +136,7 @@ public class GymApplet extends Applet {
         case INS_CHANGE_PIN:  changePin(apdu);  break;
         case INS_UNBLOCK:     unblock(apdu);    break;
         case INS_RESET_PIN:   resetPin(apdu);   break;
+        case INS_CHANGE_ADMIN_PIN: changeAdminPin(apdu); break;
         case INS_GET_PHOTO:   getPhoto(apdu);   break;
         case INS_SET_PHOTO:   setPhoto(apdu);   break;
         case INS_GET_BALANCE: getBalance(apdu); break;
@@ -299,6 +301,45 @@ public class GymApplet extends Applet {
         unwrapKey(adminWrappedK);
         setUserPin(buf, newOff, newLen);
         masterKey.clearKey(); // hoi vien phai nhap PIN moi moi xem duoc du lieu
+        adminPin.reset();
+    }
+
+    /**
+     * CHANGE_ADMIN_PIN. Data: [do dai PIN Admin cu][PIN Admin cu][PIN Admin moi].
+     * Mo K bang PIN Admin cu roi boc lai K theo PIN Admin moi voi salt moi. Du lieu va PIN hoi vien giu nguyen.
+     */
+    private void changeAdminPin(APDU apdu) {
+        requireInitialized();
+        short len = apdu.setIncomingAndReceive();
+        byte[] buf = apdu.getBuffer();
+        short oldOff = (short) (ISO7816.OFFSET_CDATA + 1);
+        short oldLen = buf[ISO7816.OFFSET_CDATA];
+        short newOff = (short) (oldOff + oldLen);
+        short newLen = (short) (ISO7816.OFFSET_CDATA + len - newOff);
+        if (len < 1 || oldLen < 0 || newLen < 0) {
+            ISOException.throwIt(ISO7816.SW_WRONG_LENGTH);
+        }
+        checkPinFormat(buf, newOff, newLen);
+        checkPin(adminPin, buf, oldOff, oldLen);
+        boolean loggedIn = userPin.isValidated() && masterKey.isInitialized();
+        deriveKek(adminSalt, (short) 0, buf, oldOff, oldLen);
+        unwrapKey(adminWrappedK);
+
+        masterKey.getKey(tmp, T_KEY);
+        random.generateData(tmp, T_IV, (short) 16);       // salt moi
+        deriveKek(tmp, T_IV, buf, newOff, newLen);
+        wrapKey(tmp, T_ENC);
+        Util.arrayFillNonAtomic(tmp, T_KEY, (short) 16, (byte) 0);
+        kek.clearKey();
+        if (!loggedIn) {
+            masterKey.clearKey(); // chi PIN hoi vien moi mo duoc du lieu
+        }
+
+        JCSystem.beginTransaction();
+        adminPin.update(buf, newOff, (byte) newLen);
+        Util.arrayCopy(tmp, T_IV, adminSalt, (short) 0, (short) 16);
+        Util.arrayCopy(tmp, T_ENC, adminWrappedK, (short) 0, (short) 16);
+        JCSystem.commitTransaction();
         adminPin.reset();
     }
 

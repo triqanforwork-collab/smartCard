@@ -7,8 +7,8 @@ import java.util.List;
 import javax.swing.JOptionPane;
 
 /**
- * Admin tra cứu hội viên trong CSDL (không cần thẻ), báo mất thẻ và bắt đầu cấp lại thẻ.
- * Thẻ đã báo mất bị phần mềm từ chối kể cả khi nhập đúng PIN (nhận ra qua khóa công khai).
+ * Admin tra cứu hội viên trong CSDL (không cần thẻ), báo mất thẻ, đổi thẻ hỏng / bị khóa PIN Admin,
+ * và cấp thẻ mới. Thẻ cũ bị phần mềm từ chối kể cả khi nhập đúng PIN (nhận ra qua khóa công khai).
  */
 public class MembersForm extends javax.swing.JPanel {
     private final MainFrame app;
@@ -37,6 +37,7 @@ public class MembersForm extends javax.swing.JPanel {
         btnBack = new javax.swing.JButton();
         btnHistory = new javax.swing.JButton();
         btnLost = new javax.swing.JButton();
+        btnBroken = new javax.swing.JButton();
         btnReissue = new javax.swing.JButton();
         btnSearch = new javax.swing.JButton();
 
@@ -71,6 +72,13 @@ public class MembersForm extends javax.swing.JPanel {
         btnLost.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnLostActionPerformed(evt);
+            }
+        });
+
+        btnBroken.setText("Đổi thẻ hỏng");
+        btnBroken.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnBrokenActionPerformed(evt);
             }
         });
 
@@ -112,6 +120,8 @@ public class MembersForm extends javax.swing.JPanel {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnLost)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnBroken)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnReissue)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnSearch)
@@ -133,6 +143,7 @@ public class MembersForm extends javax.swing.JPanel {
                     .addComponent(btnBack)
                     .addComponent(btnHistory)
                     .addComponent(btnLost)
+                    .addComponent(btnBroken)
                     .addComponent(btnReissue)
                     .addComponent(btnSearch))
                 .addGap(20, 20, 20))
@@ -172,11 +183,29 @@ public class MembersForm extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_btnLostActionPerformed
 
+    private void btnBrokenActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBrokenActionPerformed
+        try {
+            app.requireAdmin();
+            Database.Member r = selected();
+            if (!Database.ACTIVE.equals(r.status())) throw new IllegalStateException("Thẻ của " + r.info().maHV + " đang ở trạng thái " + r.status() + ": bấm Cấp lại thẻ");
+            if (JOptionPane.showConfirmDialog(this, "Đổi thẻ cho " + r.info().maHV + " – " + r.info().hoTen
+                    + "?\nDùng khi thẻ hỏng hoặc bị khóa PIN Admin (sai 3 lần). Thẻ cũ sẽ không dùng được nữa,"
+                    + "\nsố dư theo CSDL được chuyển sang thẻ mới.", "Xác nhận", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return;
+            app.db.disableCard(r.info().maHV, Database.BROKEN);
+            app.db.log(r.info().maHV, "Đổi thẻ (thẻ hỏng / khóa PIN Admin)", "Thẻ số " + r.cardNo(), false);
+            app.reissue = r.info();
+            JOptionPane.showMessageDialog(this, "Cắm một thẻ trắng vào đầu đọc rồi bấm Kết nối để cấp thẻ mới cho " + r.info().maHV + ".");
+            app.go(MainFrame.CONNECT);
+        } catch (Exception e) {
+            app.error(e);
+        }
+    }//GEN-LAST:event_btnBrokenActionPerformed
+
     private void btnReissueActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnReissueActionPerformed
         try {
             app.requireAdmin();
             Database.Member r = selected();
-            if (!Database.LOST.equals(r.status())) throw new IllegalStateException("Chỉ cấp lại thẻ cho hội viên đã báo mất thẻ");
+            if (Database.ACTIVE.equals(r.status())) throw new IllegalStateException("Thẻ của " + r.info().maHV + " đang hoạt động: báo mất hoặc đổi thẻ hỏng trước");
             app.reissue = r.info();
             JOptionPane.showMessageDialog(this, "Cắm một thẻ trắng vào đầu đọc rồi bấm Kết nối để cấp lại thẻ cho " + r.info().maHV + ".");
             app.go(MainFrame.CONNECT);
@@ -227,6 +256,7 @@ public class MembersForm extends javax.swing.JPanel {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnBack;
+    private javax.swing.JButton btnBroken;
     private javax.swing.JButton btnHistory;
     private javax.swing.JButton btnLost;
     private javax.swing.JButton btnReissue;

@@ -29,12 +29,9 @@
                           <Component id="lblHoTen" min="-2" max="-2" attributes="0"/>
                           <Component id="lblNgaySinh" min="-2" max="-2" attributes="0"/>
                           <Component id="lblSdt" min="-2" max="-2" attributes="0"/>
-                          <Component id="lblGoiTap" min="-2" max="-2" attributes="0"/>
-                          <Component id="lblHanGoi" min="-2" max="-2" attributes="0"/>
                           <Component id="lblPin" min="-2" max="-2" attributes="0"/>
                           <Component id="lblPin2" min="-2" max="-2" attributes="0"/>
                           <Component id="lblAdminPin" min="-2" max="-2" attributes="0"/>
-                          <Component id="lblAdminPin2" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace min="-2" pref="18" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
@@ -42,12 +39,9 @@
                           <Component id="txtHoTen" min="-2" pref="280" max="-2" attributes="0"/>
                           <Component id="txtNgaySinh" min="-2" pref="280" max="-2" attributes="0"/>
                           <Component id="txtSdt" min="-2" pref="280" max="-2" attributes="0"/>
-                          <Component id="txtGoiTap" min="-2" pref="280" max="-2" attributes="0"/>
-                          <Component id="txtHanGoi" min="-2" pref="280" max="-2" attributes="0"/>
                           <Component id="txtPin" min="-2" pref="280" max="-2" attributes="0"/>
                           <Component id="txtPin2" min="-2" pref="280" max="-2" attributes="0"/>
                           <Component id="txtAdminPin" min="-2" pref="280" max="-2" attributes="0"/>
-                          <Component id="txtAdminPin2" min="-2" pref="280" max="-2" attributes="0"/>
                       </Group>
                   </Group>
               </Group>
@@ -96,16 +90,6 @@
                       </Group>
                       <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="3" attributes="0">
-                          <Component alignment="3" id="lblGoiTap" min="-2" max="-2" attributes="0"/>
-                          <Component alignment="3" id="txtGoiTap" min="-2" max="-2" attributes="0"/>
-                      </Group>
-                      <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
-                      <Group type="103" groupAlignment="3" attributes="0">
-                          <Component alignment="3" id="lblHanGoi" min="-2" max="-2" attributes="0"/>
-                          <Component alignment="3" id="txtHanGoi" min="-2" max="-2" attributes="0"/>
-                      </Group>
-                      <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
-                      <Group type="103" groupAlignment="3" attributes="0">
                           <Component alignment="3" id="lblPin" min="-2" max="-2" attributes="0"/>
                           <Component alignment="3" id="txtPin" min="-2" max="-2" attributes="0"/>
                       </Group>
@@ -118,11 +102,6 @@
                       <Group type="103" groupAlignment="3" attributes="0">
                           <Component alignment="3" id="lblAdminPin" min="-2" max="-2" attributes="0"/>
                           <Component alignment="3" id="txtAdminPin" min="-2" max="-2" attributes="0"/>
-                      </Group>
-                      <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
-                      <Group type="103" groupAlignment="3" attributes="0">
-                          <Component alignment="3" id="lblAdminPin2" min="-2" max="-2" attributes="0"/>
-                          <Component alignment="3" id="txtAdminPin2" min="-2" max="-2" attributes="0"/>
                       </Group>
                   </Group>
                   <Group type="102" alignment="0" attributes="0">
@@ -178,20 +157,6 @@
     </Component>
     <Component class="javax.swing.JTextField" name="txtSdt">
     </Component>
-    <Component class="javax.swing.JLabel" name="lblGoiTap">
-      <Properties>
-        <Property name="text" type="java.lang.String" value="Gói tập"/>
-      </Properties>
-    </Component>
-    <Component class="javax.swing.JTextField" name="txtGoiTap">
-    </Component>
-    <Component class="javax.swing.JLabel" name="lblHanGoi">
-      <Properties>
-        <Property name="text" type="java.lang.String" value="Hạn gói (dd/mm/yyyy)"/>
-      </Properties>
-    </Component>
-    <Component class="javax.swing.JTextField" name="txtHanGoi">
-    </Component>
     <Component class="javax.swing.JLabel" name="lblPin">
       <Properties>
         <Property name="text" type="java.lang.String" value="PIN ban đầu"/>
@@ -208,17 +173,10 @@
     </Component>
     <Component class="javax.swing.JLabel" name="lblAdminPin">
       <Properties>
-        <Property name="text" type="java.lang.String" value="PIN Admin"/>
+        <Property name="text" type="java.lang.String" value="PIN Admin của phòng gym"/>
       </Properties>
     </Component>
     <Component class="javax.swing.JPasswordField" name="txtAdminPin">
-    </Component>
-    <Component class="javax.swing.JLabel" name="lblAdminPin2">
-      <Properties>
-        <Property name="text" type="java.lang.String" value="Nhập lại PIN Admin"/>
-      </Properties>
-    </Component>
-    <Component class="javax.swing.JPasswordField" name="txtAdminPin2">
     </Component>
     <Component class="javax.swing.JLabel" name="lblPhoto">
       <Properties>

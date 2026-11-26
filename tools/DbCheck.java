@@ -29,7 +29,7 @@ public class DbCheck {
             if (!a[0].contains("test")) throw new IllegalArgumentException("Tên CSDL MySQL phải chứa \"test\"");
             try (var c = DriverManager.getConnection(a[0], a[1], a.length > 2 ? a[2] : "");
                  Statement st = c.createStatement()) {
-                for (String t : new String[]{"logs", "checkins", "lost_cards", "transactions", "admins", "packages", "members"})
+                for (String t : new String[]{"logs", "checkins", "lost_cards", "transactions", "admins", "admin_pins", "packages", "members"})
                     st.execute("DROP TABLE IF EXISTS " + t);
             }
             db = new Database(a[0], a[1], a.length > 2 ? a[2] : "");
@@ -76,9 +76,27 @@ public class DbCheck {
             check("Nhật ký: 1 cảnh báo, ghi kèm Admin",
                     db.logs(true).size() == 1 && "admin".equals(db.logs(true).get(0).admin()));
 
-            db.createAdmin("admin", "matkhau123".toCharArray());
+            String code = db.createAdmin("admin", "matkhau123".toCharArray());
             check("Admin: đúng mật khẩu thì vào, sai thì không",
                     db.hasAdmin() && db.checkAdmin("admin", "matkhau123".toCharArray()) && !db.checkAdmin("admin", "x".toCharArray()));
+            check("Mã khôi phục dạng XXXX-XXXX-XXXX, nhập chữ thường / thiếu gạch vẫn đúng, mã sai thì không",
+                    code.matches("[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}") && db.checkRecoveryCode("admin", code.toLowerCase().replace("-", ""))
+                            && !db.checkRecoveryCode("admin", "AAAA-BBBB-CCCC"));
+            check("Quên mật khẩu, mã khôi phục sai: không đổi được", db.resetAdminPassword("admin", "AAAA-BBBB-CCCC", "moi123456".toCharArray()) == null);
+            String code2 = db.resetAdminPassword("admin", code, "moi123456".toCharArray());
+            check("Quên mật khẩu, đúng mã: mật khẩu mới vào được, mật khẩu cũ và mã cũ hết hiệu lực, có mã mới",
+                    code2 != null && db.checkAdmin("admin", "moi123456".toCharArray()) && !db.checkAdmin("admin", "matkhau123".toCharArray())
+                            && !db.checkRecoveryCode("admin", code) && db.checkRecoveryCode("admin", code2));
+
+            check("Chưa đặt PIN Admin: phiên bản 0", db.adminPinVersion() == 0);
+            int v1 = db.setAdminPin("87654321"), v2 = db.setAdminPin("13572468");
+            check("PIN Admin chung: phiên bản 1, 2; mỗi phiên bản chỉ nhận đúng PIN của nó",
+                    v1 == 1 && v2 == 2 && db.adminPinVersion() == 2 && db.checkAdminPin("87654321", 1) && db.checkAdminPin("13572468", 2)
+                            && !db.checkAdminPin("87654321", 2) && !db.checkAdminPin("13572468", 1));
+            check("Thẻ HV900 phát hành lúc chưa có PIN Admin, tra hội viên theo khóa công khai của thẻ được",
+                    "HV900".equals(db.memberByKey(k1)) && db.memberByKey(k2) == null);
+            db.setMemberAdminPinVersion("HV900", 2);
+            check("Ghi nhận thẻ HV900 đã cập nhật lên PIN Admin phiên bản 2", db.memberAdminPinVersion("HV900") == 2);
 
             db.addPackage("Gói 2 tháng", 2, 550);
             int id = db.allPackages().stream().filter(p -> p.months() == 2).findFirst().orElseThrow().id();
@@ -95,9 +113,28 @@ public class DbCheck {
             check("Báo mất: trạng thái Đã báo mất, thẻ cũ nằm trong danh sách mất",
                     Database.LOST.equals(db.memberStatus("HV900")) && db.isLostCard("HV900", k1));
             db.reissue(m, k2);
-            check("Cấp lại: thẻ số 2, khóa mới, số dư thẻ mới bắt đầu từ 0",
+            check("Cấp lại: thẻ số 2, khóa mới, số dư thẻ mới bắt đầu từ 0, thẻ mới mang PIN Admin hiện tại",
                     db.members("HV900").get(0).cardNo() == 2 && db.publicKey("HV900").equals(k2)
-                            && !db.isLostCard("HV900", k2) && db.expected("HV900").balance() == 0);
+                            && !db.isLostCard("HV900", k2) && db.expected("HV900").balance() == 0 && db.memberAdminPinVersion("HV900") == 2);
+            db.disableCard("HV900", Database.BROKEN);
+            check("Đổi thẻ hỏng: trạng thái Thẻ hỏng, thẻ số 2 bị vô hiệu",
+                    Database.BROKEN.equals(db.memberStatus("HV900")) && db.isLostCard("HV900", k2));
+
+            MemberInfo noPkg = new MemberInfo();
+            noPkg.maHV = "HV901"; noPkg.hoTen = "Chưa Mua Gói"; noPkg.ngaySinh = "01/01/2000"; noPkg.sdt = "0912345679";
+            db.addMember(noPkg, g.generateKeyPair().getPublic());
+            MemberInfo old = new MemberInfo();
+            old.maHV = "HV902"; old.hoTen = "Hết Hạn Gói"; old.ngaySinh = "01/01/2000"; old.sdt = "0912345670";
+            old.goiTap = "Gói 1 tháng"; old.hanGoi = LocalDate.now().minusDays(1).format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            db.addMember(old, g.generateKeyPair().getPublic());
+            db.reportLost("HV902");
+            Database.Stats st = db.stats(LocalDate.now());
+            check("Thống kê gói: 3 hội viên = 1 còn hạn + 1 hết hạn + 1 chưa có gói (chưa có gói không bị tính là hết hạn)",
+                    st.members() == 3 && st.active() == 1 && st.expired() == 1 && st.noPackage() == 1);
+            check("Thẻ chờ cấp lại: 1 báo mất (HV902), 1 thẻ hỏng (HV900)", st.lostCards() == 1 && st.brokenCards() == 1);
+            db.reissue(old, g.generateKeyPair().getPublic());
+            check("Cấp lại thẻ cho HV902 thì số thẻ chờ cấp lại tự giảm (còn 1 thẻ hỏng)",
+                    db.stats(LocalDate.now()).lostCards() == 0 && db.stats(LocalDate.now()).brokenCards() == 1);
         }
         System.out.printf("%nKẾT QUẢ: %d đạt, %d không đạt%n", pass, fail);
         if (fail > 0) System.exit(1);

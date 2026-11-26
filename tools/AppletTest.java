@@ -21,6 +21,8 @@ import java.util.List;
 public class AppletTest {
     static final byte[] AID = {0x47, 0x59, 0x4D, 0x43, 0x41, 0x52, 0x44, 0x01};
     static final String PIN = "1234", ADMIN = "87654321";
+    /** PIN Admin checkTx gửi kèm TOPUP (đổi sau khi thử CHANGE_ADMIN_PIN). */
+    static String txAdmin = ADMIN;
     static final byte[] INFO = "HV001\nNguyễn Văn Quân\n01/02/2004\n0912345678\nGói 3 tháng\n31/03/2027".getBytes(StandardCharsets.UTF_8);
     static final byte[] INFO2 = "HV001\nNguyễn Văn Quân\n01/02/2004\n0987654321\nGói 6 tháng\n30/06/2027".getBytes(StandardCharsets.UTF_8);
 
@@ -170,6 +172,25 @@ public class AppletTest {
         expectData("Số dư còn nguyên sau khi đặt lại PIN", send(0x40, null), 0x9000, bal(300, 2));
         report("Khóa RSA không đổi sau khi đặt lại PIN", Arrays.equals(sendP(0x50, 0, null).getData(), mod.getData()), "");
 
+        section("A10: đổi PIN Admin (CHANGE_ADMIN_PIN)");
+        String admin2 = "13572468";
+        expect("SELECT lại", select(), 0x9000);
+        expect("CHANGE_ADMIN_PIN sai PIN Admin cũ", send(0x24, pair(ascii("11112222"), ascii(admin2))), 0x63C2);
+        expect("CHANGE_ADMIN_PIN với PIN mới 3 số", send(0x24, pair(ascii(ADMIN), ascii("135"))), 0x6A80);
+        expect("CHANGE_ADMIN_PIN đúng PIN cũ, PIN Admin mới 13572468", send(0x24, pair(ascii(ADMIN), ascii(admin2))), 0x9000);
+        expect("Chưa nhập PIN hội viên: GET_INFO vẫn bị chặn", send(0x30, null), 0x6982);
+        expect("UNBLOCK bằng PIN Admin cũ bị từ chối", send(0x22, ascii(ADMIN)), 0x63C2);
+        expect("UNBLOCK bằng PIN Admin mới", send(0x22, ascii(admin2)), 0x9000);
+        expect("VERIFY_PIN hội viên (PIN không đổi)", send(0x20, ascii("2468")), 0x9000);
+        txAdmin = admin2;
+        checkTx("TOPUP 100 bằng PIN Admin mới", 0x41, 100, 400, 3);
+        expect("TOPUP bằng PIN Admin cũ bị từ chối", send(0x41, topup(ADMIN, 100, randomBytes(16))), 0x63C2);
+        expectData("Thông tin còn nguyên sau khi đổi PIN Admin", send(0x30, null), 0x9000, INFO2);
+        expect("SELECT lại", select(), 0x9000);
+        expect("RESET_PIN bằng PIN Admin mới (K mở được bằng PIN Admin mới)", send(0x23, pair(ascii(admin2), ascii("1357"))), 0x9000);
+        expect("VERIFY_PIN bằng PIN vừa đặt lại", send(0x20, ascii("1357")), 0x9000);
+        expectData("Số dư còn nguyên", send(0x40, null), 0x9000, bal(400, 3));
+
         System.out.printf("%nKẾT QUẢ: %d đạt, %d không đạt%n", pass, fail);
         card.disconnect(false);
         if (fail > 0) System.exit(1);
@@ -194,7 +215,7 @@ public class AppletTest {
     static void checkTx(String name, int ins, long amount, long newBal, long count) throws Exception {
         byte[] nonce = randomBytes(16);
         byte[] data = money(amount, nonce);
-        ResponseAPDU r = send(ins, ins == 0x41 ? concat(pair(ascii(ADMIN), new byte[0]), data) : data);
+        ResponseAPDU r = send(ins, ins == 0x41 ? concat(pair(ascii(txAdmin), new byte[0]), data) : data);
         byte[] d = r.getData();
         boolean ok = r.getSW() == 0x9000 && d.length == 136 && Arrays.equals(Arrays.copyOf(d, 8), bal(newBal, count));
         report(name + String.format(": số dư %d, giao dịch thứ %d", newBal, count), ok,

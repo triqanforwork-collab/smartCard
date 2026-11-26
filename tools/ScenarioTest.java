@@ -56,6 +56,12 @@ public class ScenarioTest {
             m.validate();
             byte[] photo = MainFrame.compressPhoto(ImageIO.read(new File("docs/anh-mau.jpg")));
             check("Ảnh mẫu " + new File("docs/anh-mau.jpg").length() + " byte được nén còn " + photo.length + " byte", photo.length <= CardService.MAX_PHOTO);
+            MemberInfo m0 = m;
+            expectError("Phòng gym chưa đặt PIN Admin thì chưa phát hành thẻ được",
+                    () -> members.issueCard("1234", "87654321", m0, photo), "Chưa đặt PIN Admin");
+            db.setAdminPin("87654321");
+            expectError("PIN Admin nhập sai bị phần mềm chặn, chưa gửi lệnh INIT xuống thẻ",
+                    () -> members.issueCard("1234", "11112222", m0, photo), "PIN Admin không đúng");
             members.issueCard("1234", "87654321", m, photo);
             check("Thẻ đã khởi tạo, CSDL có HV100 và khóa công khai của thẻ",
                     card.isInitialized() && db.publicKey("HV100").equals(card.getPublicKey()));
@@ -63,7 +69,7 @@ public class ScenarioTest {
             check("Số dư ban đầu 0", wallet.balance().balance() == 0);
 
             section("K01. Bước 4–7: nạp tiền, gia hạn gói, không đủ tiền, lịch sử");
-            CardService.TxResult t = wallet.topUp("HV100", 2000, "87654321");
+            CardService.TxResult t = wallet.topUp("HV100", 2000, "87654321", null);
             check("Nạp 2000: số dư 2000, ghi CSDL 1 giao dịch hợp lệ", t.balance() == 2000 && db.transactions("HV100").size() == 1);
             Database.GymPackage p3 = pkg(db, 3), p12 = pkg(db, 12);
             m = wallet.payPackage(card.getInfo(), p3);
@@ -115,7 +121,7 @@ public class ScenarioTest {
             reconnect();
             card.verifyPin("2468");
             long before = db.transactions("HV100").size();
-            expectError("Giao dịch có chữ ký không khớp không được ghi CSDL", () -> wallet.topUp("HV100", 100, "87654321"), "Chữ ký");
+            expectError("Giao dịch có chữ ký không khớp không được ghi CSDL", () -> wallet.topUp("HV100", 100, "87654321", null), "Chữ ký");
             check("CSDL không thêm giao dịch nào", db.transactions("HV100").size() == before);
             swapKey(dbFile.getPath(), realKey);
             try (Database empty = new Database(File.createTempFile("gym-empty", ".db").getPath())) {
@@ -127,7 +133,7 @@ public class ScenarioTest {
             String diff = members.reconcile("HV100");
             check("D05: thẻ bị cộng 100 mà CSDL không ghi nhận nên đối chiếu báo lệch", diff != null && diff.contains("khác với CSDL"));
             db.addTransaction("HV100", Database.TOPUP, 1, 1200, 99, "giả lập giao dịch số 99 đã ghi", new byte[16], new byte[128], true);
-            expectError("Số thứ tự giao dịch không lớn hơn số đã ghi bị coi là gửi lại", () -> wallet.topUp("HV100", 100, "87654321"), "gửi lại");
+            expectError("Số thứ tự giao dịch không lớn hơn số đã ghi bị coi là gửi lại", () -> wallet.topUp("HV100", 100, "87654321", null), "gửi lại");
 
             section("G04, A09. Tài khoản Admin, nạp tiền đòi PIN Admin");
             check("CSDL mới chưa có tài khoản Admin", !db.hasAdmin());
@@ -142,11 +148,12 @@ public class ScenarioTest {
                         rs.getBytes(1).length == 32 && rs.getInt(2) == 16 && !new String(rs.getBytes(1)).contains("matkhau123"));
             }
             long bal = wallet.balance().balance();
-            expectSw("Nạp tiền với PIN Admin sai bị thẻ từ chối", () -> wallet.topUp("HV100", 500, "11112222"), 0x63C2);
+            expectError("Nạp tiền với PIN Admin sai bị phần mềm chặn trước khi gửi xuống thẻ",
+                    () -> wallet.topUp("HV100", 500, "11112222", null), "PIN Admin không đúng");
             check("Số dư không đổi sau khi nạp tiền bị từ chối", wallet.balance().balance() == bal);
 
             section("K02. Dữ liệu sai, rút thẻ");
-            expectError("Nạp 0 đồng bị chặn", () -> wallet.topUp("HV100", 0, "87654321"), "không hợp lệ");
+            expectError("Nạp 0 đồng bị chặn", () -> wallet.topUp("HV100", 0, "87654321", null), "không hợp lệ");
             expectError("Ảnh lớn hơn 10240 byte bị chặn", () -> card.setPhoto(new byte[10241]), "quá lớn");
             MemberInfo longName = card.getInfo();
             longName.hoTen = "Nguyễn".repeat(40);
@@ -170,7 +177,7 @@ public class ScenarioTest {
             Database.Stats st = db.stats(LocalDate.now());
             check(String.format("Thống kê: %d hội viên, %d còn hạn, %d check-in hôm nay, nạp tháng này %d, %d cảnh báo hôm nay",
                             st.members(), st.active(), st.checkInsToday(), st.topUpThisMonth(), st.warningsToday()),
-                    st.members() == 1 && st.active() == 1 && st.checkInsToday() == 1 && st.topUpThisMonth() >= 2000 && st.warningsToday() >= 4);
+                    st.members() == 1 && st.active() == 1 && st.noPackage() == 0 && st.lostCards() + st.brokenCards() == 0 && st.checkInsToday() == 1 && st.topUpThisMonth() >= 2000 && st.warningsToday() >= 4);
             check("Sắp hết hạn: không ai trong 7 ngày, HV100 nằm trong 100 ngày",
                     db.expiringWithin(7, LocalDate.now()).isEmpty() && db.expiringWithin(100, LocalDate.now()).size() == 1);
 
@@ -187,6 +194,25 @@ public class ScenarioTest {
             check("Đổi mật khẩu đúng: mật khẩu mới đăng nhập được, mật khẩu cũ thì không",
                     db.changeAdminPassword("admin", "matkhau123".toCharArray(), "moi123456".toCharArray())
                             && db.checkAdmin("admin", "moi123456".toCharArray()) && !db.checkAdmin("admin", "matkhau123".toCharArray()));
+
+            section("A10. Đổi PIN Admin chung, thẻ cũ được cập nhật khi Admin thao tác (lệnh CHANGE_ADMIN_PIN)");
+            check("Đổi PIN Admin: phiên bản 2, thẻ HV100 còn phiên bản 1",
+                    db.setAdminPin("13572468") == 2 && db.memberAdminPinVersion("HV100") == 1);
+            reconnect();
+            expectError("Đặt lại PIN bằng PIN Admin cũ bị chặn (không còn là PIN hiện tại)",
+                    () -> members.resetPin("87654321", "2468", q -> null), "PIN Admin không đúng");
+            expectError("Thẻ còn PIN Admin cũ, không nhập PIN cũ thì không làm được",
+                    () -> members.resetPin("13572468", "2468", q -> null), "PIN Admin cũ");
+            expectError("Nhập sai PIN Admin cũ bị chặn trước khi gửi xuống thẻ",
+                    () -> members.resetPin("13572468", "2468", q -> "11112222"), "cũ không đúng");
+            members.resetPin("13572468", "2468", q -> "87654321");
+            check("Nhập PIN cũ một lần: thẻ đổi sang PIN Admin mới rồi đặt lại PIN, CSDL ghi thẻ ở phiên bản 2",
+                    db.memberAdminPinVersion("HV100") == 2);
+            reconnect();
+            check("Dữ liệu thẻ còn nguyên, đăng nhập bằng PIN hội viên được", members.login("2468").maHV.equals("HV100"));
+            expectSw("Thẻ không còn nhận PIN Admin cũ", () -> card.unblock("87654321"), 0x63C2);
+            card.unblock("13572468");
+            check("Thẻ nhận PIN Admin mới", true);
 
             section("D07 (lượt 1). Báo mất thẻ");
             reconnect();
@@ -214,7 +240,7 @@ public class ScenarioTest {
             check("CSDL của lượt 1: HV100 đang ở trạng thái Đã báo mất", Database.LOST.equals(db.memberStatus("HV100")));
             long old = db.expected("HV100").balance();
             MemberInfo info = db.findMembers("HV100").get(0);
-            members.reissueCard("1357", "87654321", info, null);
+            members.reissueCard("1357", "13572468", info, null);
             check("Cấp lại thẻ: trạng thái Hoạt động, thẻ số 2, khóa công khai mới khớp thẻ mới",
                     Database.ACTIVE.equals(db.memberStatus("HV100")) && db.members("HV100").get(0).cardNo() == 2
                             && db.publicKey("HV100").equals(card.getPublicKey()));
@@ -225,7 +251,7 @@ public class ScenarioTest {
             check("Thẻ mới đăng nhập được bằng PIN mới", members.login("1357").maHV.equals("HV100"));
             check("Đối chiếu số dư thẻ mới khớp CSDL", members.reconcile("HV100") == null);
             check("Thẻ mới check-in được", members.checkIn("1357", LocalDate.now()).member().maHV.equals("HV100"));
-            expectError("Cấp lại thẻ cho hội viên chưa báo mất bị từ chối", () -> members.reissueCard("1357", "87654321", info, null), "đã báo mất");
+            expectError("Cấp lại thẻ cho hội viên chưa báo mất bị từ chối", () -> members.reissueCard("1357", "13572468", info, null), "đã báo mất");
             check("Nhật ký có: cấp lại thẻ, chuyển số dư",
                     db.logs(false).stream().anyMatch(l -> l.action().equals("Cấp lại thẻ"))
                             && db.logs(false).stream().anyMatch(l -> l.action().equals(Database.TRANSFER)));

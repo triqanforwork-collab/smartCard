@@ -27,6 +27,7 @@
                       <Group type="103" groupAlignment="0" attributes="0">
                           <Component id="lblAdmin" min="-2" max="-2" attributes="0"/>
                           <Component id="lblMembers" min="-2" max="-2" attributes="0"/>
+                          <Component id="lblWaiting" min="-2" max="-2" attributes="0"/>
                           <Component id="lblExpiring" min="-2" max="-2" attributes="0"/>
                           <Component id="lblTopUp" min="-2" max="-2" attributes="0"/>
                           <Component id="lblCheckIns" min="-2" max="-2" attributes="0"/>
@@ -36,6 +37,7 @@
                       <Group type="103" groupAlignment="0" attributes="0">
                           <Component id="txtAdmin" min="-2" pref="220" max="-2" attributes="0"/>
                           <Component id="txtMembers" min="-2" pref="220" max="-2" attributes="0"/>
+                          <Component id="txtWaiting" min="-2" pref="220" max="-2" attributes="0"/>
                           <Component id="txtExpiring" min="-2" pref="220" max="-2" attributes="0"/>
                           <Component id="txtTopUp" min="-2" pref="220" max="-2" attributes="0"/>
                           <Component id="txtCheckIns" min="-2" pref="220" max="-2" attributes="0"/>
@@ -53,6 +55,8 @@
               <Component id="btnLogout" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="btnPassword" min="-2" max="-2" attributes="0"/>
+              <EmptySpace max="-2" attributes="0"/>
+              <Component id="btnAdminPin" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="btnLogs" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
@@ -77,6 +81,11 @@
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component alignment="3" id="lblMembers" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="txtMembers" min="-2" max="-2" attributes="0"/>
+              </Group>
+              <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
+              <Group type="103" groupAlignment="3" attributes="0">
+                  <Component alignment="3" id="lblWaiting" min="-2" max="-2" attributes="0"/>
+                  <Component alignment="3" id="txtWaiting" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
@@ -105,6 +114,7 @@
                   <Component alignment="3" id="btnBack" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnLogout" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnPassword" min="-2" max="-2" attributes="0"/>
+                  <Component alignment="3" id="btnAdminPin" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnLogs" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnPackages" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnMembers" min="-2" max="-2" attributes="0"/>
@@ -135,10 +145,20 @@
     </Component>
     <Component class="javax.swing.JLabel" name="lblMembers">
       <Properties>
-        <Property name="text" type="java.lang.String" value="Hội viên (còn hạn / hết hạn)"/>
+        <Property name="text" type="java.lang.String" value="Hội viên (còn hạn / hết hạn / chưa có gói)"/>
       </Properties>
     </Component>
     <Component class="javax.swing.JTextField" name="txtMembers">
+      <Properties>
+        <Property name="editable" type="boolean" value="false"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JLabel" name="lblWaiting">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Thẻ chờ cấp lại (báo mất / hỏng)"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JTextField" name="txtWaiting">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>
@@ -216,6 +236,14 @@
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnPasswordActionPerformed"/>
+      </Events>
+    </Component>
+    <Component class="javax.swing.JButton" name="btnAdminPin">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Đổi PIN Admin"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnAdminPinActionPerformed"/>
       </Events>
     </Component>
     <Component class="javax.swing.JButton" name="btnLogs">

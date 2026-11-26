@@ -28,10 +28,13 @@
 | `21` | CHANGE_PIN | `00 00` | `[độ dài PIN cũ][PIN cũ][PIN mới]` | – | – (tự kiểm tra PIN cũ) |
 | `22` | UNBLOCK | `00 00` | `[PIN Admin]` | – | – |
 | `23` | RESET_PIN | `00 00` | `[độ dài PIN Admin][PIN Admin][PIN mới]` | – | – |
+| `24` | CHANGE_ADMIN_PIN | `00 00` | `[độ dài PIN Admin cũ][PIN Admin cũ][PIN Admin mới]` | – | – (tự kiểm tra PIN Admin cũ) |
 
 - **Trạng thái** trong GET_STATUS: `00` thẻ trắng, `01` đã khởi tạo, `02` PIN người dùng đã bị khoá.
 - **UNBLOCK:** Admin mở khoá, PIN người dùng giữ nguyên, số lần thử về lại 3.
 - **RESET_PIN:** hội viên quên PIN. Admin đặt PIN mới; thông tin, ảnh và số dư vẫn còn nguyên (xem phần mã hoá).
+- **CHANGE_ADMIN_PIN:** đổi PIN Admin của thẻ (khi phòng gym đổi PIN Admin chung). PIN hội viên và dữ liệu giữ nguyên.
+- Phần mềm giữ bản băm PBKDF2 của PIN Admin chung (theo phiên bản) và kiểm tra trước khi gửi lệnh có PIN Admin, nên nhập sai trên phần mềm không làm thẻ mất lượt thử. PIN Admin bị khoá (sai 3 lần gửi thẳng tới thẻ) thì không gỡ được: Admin đổi thẻ mới cho hội viên.
 
 ### Thông tin và ảnh
 
@@ -83,7 +86,7 @@ Máy tính tự dựng lại đúng chuỗi trên rồi kiểm tra chữ ký. Ch
 - **Khoá sinh từ PIN:** `KEK = 16 byte đầu của SHA-256(salt ‖ PIN)`, salt 16 byte ngẫu nhiên tạo lúc INIT.
 - Thẻ lưu 2 bản K đã bọc (AES, 1 khối 16 byte): một bản bằng KEK của PIN người dùng, một bản bằng KEK của PIN Admin (salt riêng).
 - **VERIFY_PIN** đúng thì thẻ mở bọc K và giữ trong RAM (tự xoá khi rút thẻ).
-- **CHANGE_PIN** chỉ bọc lại K bằng PIN mới. **RESET_PIN** mở K bằng PIN Admin rồi bọc lại bằng PIN mới của người dùng.
+- **CHANGE_PIN** chỉ bọc lại K bằng PIN mới. **RESET_PIN** mở K bằng PIN Admin rồi bọc lại bằng PIN mới của người dùng. **CHANGE_ADMIN_PIN** mở K bằng PIN Admin cũ rồi bọc lại bằng PIN Admin mới (salt mới).
 - Thông tin: AES-CBC, IV ngẫu nhiên tạo mới mỗi lần ghi.
 - Ảnh: mỗi đoạn 240 byte (đúng 15 khối AES) mã hoá AES-CBC riêng, IV = IV của ảnh với 2 byte cuối XOR số thứ tự đoạn.
 - Số dư: 1 khối 16 byte `[số dư 4][số giao dịch 4][8 byte 0]`, mã hoá AES. Cập nhật trong một giao dịch Java Card (`beginTransaction`/`commitTransaction`) để không hỏng khi rút thẻ giữa chừng.

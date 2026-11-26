@@ -4,8 +4,9 @@ import gym.desktop.MainFrame;
 import javax.swing.JOptionPane;
 
 /**
- * Đăng nhập Admin cho phần mềm. Lần đầu (CSDL chưa có Admin) thì tạo tài khoản.
- * Mật khẩu lưu trong CSDL dạng băm PBKDF2-HMAC-SHA256 có salt (xem Database.createAdmin).
+ * Đăng nhập Admin cho phần mềm. Lần đầu (CSDL chưa có Admin) thì tạo tài khoản và đặt PIN Admin chung
+ * của phòng gym. Mật khẩu, PIN Admin, mã khôi phục lưu trong CSDL dạng băm PBKDF2-HMAC-SHA256 có salt.
+ * Quên mật khẩu: nhập mã khôi phục (nhận khi tạo tài khoản) để đặt mật khẩu mới.
  */
 public class AdminLoginForm extends javax.swing.JPanel {
     private final MainFrame app;
@@ -32,8 +33,13 @@ public class AdminLoginForm extends javax.swing.JPanel {
         txtPassword = new javax.swing.JPasswordField();
         lblPassword2 = new javax.swing.JLabel();
         txtPassword2 = new javax.swing.JPasswordField();
+        lblAdminPin = new javax.swing.JLabel();
+        txtAdminPin = new javax.swing.JPasswordField();
+        lblAdminPin2 = new javax.swing.JLabel();
+        txtAdminPin2 = new javax.swing.JPasswordField();
         lblStatus = new javax.swing.JLabel();
         btnBack = new javax.swing.JButton();
+        btnForgot = new javax.swing.JButton();
         btnCreate = new javax.swing.JButton();
         btnLogin = new javax.swing.JButton();
 
@@ -52,12 +58,23 @@ public class AdminLoginForm extends javax.swing.JPanel {
 
         lblPassword2.setText("Nhập lại mật khẩu (khi tạo)");
 
+        lblAdminPin.setText("PIN Admin phòng gym (khi tạo)");
+
+        lblAdminPin2.setText("Nhập lại PIN Admin (khi tạo)");
+
         lblStatus.setText(" ");
 
         btnBack.setText("Quay lại");
         btnBack.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 btnBackActionPerformed(evt);
+            }
+        });
+
+        btnForgot.setText("Quên mật khẩu");
+        btnForgot.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnForgotActionPerformed(evt);
             }
         });
 
@@ -87,17 +104,23 @@ public class AdminLoginForm extends javax.swing.JPanel {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(lblUser)
                             .addComponent(lblPassword)
-                            .addComponent(lblPassword2))
+                            .addComponent(lblPassword2)
+                            .addComponent(lblAdminPin)
+                            .addComponent(lblAdminPin2))
                         .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(txtUser, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtPassword, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(txtPassword2, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                            .addComponent(txtPassword2, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(txtAdminPin, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(txtAdminPin2, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addComponent(lblStatus))
                 .addGap(24, 24, Short.MAX_VALUE))
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
                 .addGap(0, 0, Short.MAX_VALUE)
                 .addComponent(btnBack)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnForgot)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnCreate)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -121,11 +144,20 @@ public class AdminLoginForm extends javax.swing.JPanel {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(lblPassword2)
                     .addComponent(txtPassword2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(10, 10, 10)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(lblAdminPin)
+                    .addComponent(txtAdminPin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(10, 10, 10)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(lblAdminPin2)
+                    .addComponent(txtAdminPin2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(12, 12, 12)
                 .addComponent(lblStatus)
                 .addGap(24, 24, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnBack)
+                    .addComponent(btnForgot)
                     .addComponent(btnCreate)
                     .addComponent(btnLogin))
                 .addGap(20, 20, 20))
@@ -137,9 +169,12 @@ public class AdminLoginForm extends javax.swing.JPanel {
         try {
             boolean has = app.db.hasAdmin();
             btnCreate.setEnabled(!has);
+            btnForgot.setEnabled(has);
             txtPassword2.setEnabled(!has);
+            txtAdminPin.setEnabled(!has);
+            txtAdminPin2.setEnabled(!has);
             lblStatus.setText(has ? "Nhập tài khoản Admin để dùng các chức năng quản trị."
-                    : "Chưa có tài khoản Admin. Hãy tạo tài khoản đầu tiên (mật khẩu ít nhất 6 ký tự).");
+                    : "Chưa có tài khoản Admin. Tạo tài khoản đầu tiên (mật khẩu ít nhất 6 ký tự) và PIN Admin chung (4–8 chữ số).");
         } catch (Exception e) {
             app.error(e);
         }
@@ -149,6 +184,14 @@ public class AdminLoginForm extends javax.swing.JPanel {
         app.go(MainFrame.CONNECT);
     }//GEN-LAST:event_btnBackActionPerformed
 
+    private void btnForgotActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnForgotActionPerformed
+        try {
+            forgot();
+        } catch (Exception e) {
+            app.error(e);
+        }
+    }//GEN-LAST:event_btnForgotActionPerformed
+
     private void btnCreateActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCreateActionPerformed
         try {
             String user = txtUser.getText().trim();
@@ -156,11 +199,17 @@ public class AdminLoginForm extends javax.swing.JPanel {
             if (!user.matches("[A-Za-z0-9_]{3,20}")) throw new IllegalArgumentException("Tên đăng nhập gồm 3–20 chữ cái, số hoặc _");
             if (pass.length < 6) throw new IllegalArgumentException("Mật khẩu phải có ít nhất 6 ký tự");
             if (!java.util.Arrays.equals(pass, txtPassword2.getPassword())) throw new IllegalArgumentException("Hai ô mật khẩu không khớp nhau");
+            String adminPin = Input.pin(txtAdminPin, txtAdminPin2, "PIN Admin");
             if (app.db.hasAdmin()) throw new IllegalStateException("Đã có tài khoản Admin");
-            app.db.createAdmin(user, pass);
+            String code = app.db.createAdmin(user, pass);
             app.setAdmin(user);
             app.db.log(null, "Tạo tài khoản Admin", user, false);
-            JOptionPane.showMessageDialog(this, "Đã tạo tài khoản Admin " + user + " và đăng nhập");
+            if (app.db.adminPinVersion() == 0) {
+                app.db.setAdminPin(adminPin);
+                app.db.log(null, "Đặt PIN Admin của phòng gym", "Phiên bản 1", false);
+            }
+            JOptionPane.showMessageDialog(this, "Đã tạo tài khoản Admin " + user + " và đặt PIN Admin của phòng gym.");
+            app.showRecoveryCode(user, code);
             app.go(MainFrame.ADMIN_HOME);
         } catch (Exception e) {
             app.error(e);
@@ -178,6 +227,7 @@ public class AdminLoginForm extends javax.swing.JPanel {
             }
             app.setAdmin(user);
             app.db.log(null, "Đăng nhập Admin", null, false);
+            app.afterAdminLogin();
             app.go(MainFrame.ADMIN_HOME);
         } catch (Exception e) {
             app.error(e);
@@ -189,18 +239,49 @@ public class AdminLoginForm extends javax.swing.JPanel {
     private void clear() {
         txtPassword.setText("");
         txtPassword2.setText("");
+        txtAdminPin.setText("");
+        txtAdminPin2.setText("");
+    }
+
+    /** Quên mật khẩu: đúng mã khôi phục thì đặt mật khẩu mới, cấp mã khôi phục mới (mã cũ hết hiệu lực). */
+    private void forgot() throws Exception {
+        javax.swing.JTextField user = new javax.swing.JTextField(txtUser.getText().trim(), 16);
+        javax.swing.JTextField code = new javax.swing.JTextField(16);
+        javax.swing.JPasswordField p1 = new javax.swing.JPasswordField(16), p2 = new javax.swing.JPasswordField(16);
+        Object[] form = {"Tên đăng nhập:", user, "Mã khôi phục (nhận khi tạo tài khoản):", code,
+                "Mật khẩu mới (ít nhất 6 ký tự):", p1, "Nhập lại mật khẩu mới:", p2};
+        if (JOptionPane.showConfirmDialog(this, form, "Quên mật khẩu Admin", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+        String u = user.getText().trim();
+        char[] pass = p1.getPassword();
+        if (pass.length < 6) throw new IllegalArgumentException("Mật khẩu mới phải có ít nhất 6 ký tự");
+        if (!java.util.Arrays.equals(pass, p2.getPassword())) throw new IllegalArgumentException("Hai ô mật khẩu mới không khớp nhau");
+        String newCode = app.db.resetAdminPassword(u, code.getText(), pass);
+        if (newCode == null) {
+            app.db.log(null, "Đặt lại mật khẩu Admin thất bại", "Sai mã khôi phục, tên đăng nhập: " + u, true);
+            throw new IllegalArgumentException("Sai tên đăng nhập hoặc mã khôi phục");
+        }
+        app.db.log(null, "Đặt lại mật khẩu Admin bằng mã khôi phục", "Tên đăng nhập: " + u, true);
+        JOptionPane.showMessageDialog(this, "Đã đặt mật khẩu mới cho " + u + ". Mã khôi phục cũ hết hiệu lực.");
+        app.showRecoveryCode(u, newCode);
+        txtUser.setText(u);
     }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnBack;
     private javax.swing.JButton btnCreate;
+    private javax.swing.JButton btnForgot;
     private javax.swing.JButton btnLogin;
+    private javax.swing.JLabel lblAdminPin;
+    private javax.swing.JLabel lblAdminPin2;
     private javax.swing.JLabel lblPassword;
     private javax.swing.JLabel lblPassword2;
     private javax.swing.JLabel lblStatus;
     private javax.swing.JLabel lblTitle;
     private javax.swing.JLabel lblUser;
+    private javax.swing.JPasswordField txtAdminPin;
+    private javax.swing.JPasswordField txtAdminPin2;
     private javax.swing.JPasswordField txtPassword;
     private javax.swing.JPasswordField txtPassword2;
     private javax.swing.JTextField txtUser;

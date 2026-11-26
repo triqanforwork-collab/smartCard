@@ -30,6 +30,8 @@ public class AdminHomeForm extends javax.swing.JPanel {
         txtAdmin = new javax.swing.JTextField();
         lblMembers = new javax.swing.JLabel();
         txtMembers = new javax.swing.JTextField();
+        lblWaiting = new javax.swing.JLabel();
+        txtWaiting = new javax.swing.JTextField();
         lblExpiring = new javax.swing.JLabel();
         txtExpiring = new javax.swing.JTextField();
         lblTopUp = new javax.swing.JLabel();
@@ -43,6 +45,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
         btnBack = new javax.swing.JButton();
         btnLogout = new javax.swing.JButton();
         btnPassword = new javax.swing.JButton();
+        btnAdminPin = new javax.swing.JButton();
         btnLogs = new javax.swing.JButton();
         btnPackages = new javax.swing.JButton();
         btnMembers = new javax.swing.JButton();
@@ -60,9 +63,13 @@ public class AdminHomeForm extends javax.swing.JPanel {
 
         txtAdmin.setEditable(false);
 
-        lblMembers.setText("Hội viên (còn hạn / hết hạn)");
+        lblMembers.setText("Hội viên (còn hạn / hết hạn / chưa có gói)");
 
         txtMembers.setEditable(false);
+
+        lblWaiting.setText("Thẻ chờ cấp lại (báo mất / hỏng)");
+
+        txtWaiting.setEditable(false);
 
         lblExpiring.setText("Sắp hết hạn trong 7 ngày");
 
@@ -103,6 +110,13 @@ public class AdminHomeForm extends javax.swing.JPanel {
             }
         });
 
+        btnAdminPin.setText("Đổi PIN Admin");
+        btnAdminPin.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnAdminPinActionPerformed(evt);
+            }
+        });
+
         btnLogs.setText("Nhật ký");
         btnLogs.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -136,6 +150,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(lblAdmin)
                             .addComponent(lblMembers)
+                            .addComponent(lblWaiting)
                             .addComponent(lblExpiring)
                             .addComponent(lblTopUp)
                             .addComponent(lblCheckIns)
@@ -144,6 +159,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(txtAdmin, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtMembers, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(txtWaiting, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtExpiring, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtTopUp, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtCheckIns, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -157,6 +173,8 @@ public class AdminHomeForm extends javax.swing.JPanel {
                 .addComponent(btnLogout)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnPassword)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnAdminPin)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnLogs)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -180,6 +198,10 @@ public class AdminHomeForm extends javax.swing.JPanel {
                     .addComponent(txtMembers, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(10, 10, 10)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(lblWaiting)
+                    .addComponent(txtWaiting, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(10, 10, 10)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(lblExpiring)
                     .addComponent(txtExpiring, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(10, 10, 10)
@@ -201,6 +223,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
                     .addComponent(btnBack)
                     .addComponent(btnLogout)
                     .addComponent(btnPassword)
+                    .addComponent(btnAdminPin)
                     .addComponent(btnLogs)
                     .addComponent(btnPackages)
                     .addComponent(btnMembers))
@@ -220,7 +243,8 @@ public class AdminHomeForm extends javax.swing.JPanel {
         try {
             Database.Stats s = app.db.stats(today);
             txtAdmin.setText(app.admin);
-            txtMembers.setText(s.members() + "  (" + s.active() + " / " + s.expired() + ")");
+            txtMembers.setText(s.members() + "  (" + s.active() + " / " + s.expired() + " / " + s.noPackage() + ")");
+            txtWaiting.setText((s.lostCards() + s.brokenCards()) + "  (" + s.lostCards() + " / " + s.brokenCards() + ")");
             txtExpiring.setText(String.valueOf(s.expiringSoon()));
             txtTopUp.setText(String.valueOf(s.topUpThisMonth()));
             txtCheckIns.setText(String.valueOf(s.checkInsToday()));
@@ -249,6 +273,10 @@ public class AdminHomeForm extends javax.swing.JPanel {
         app.go(MainFrame.ADMIN_PASSWORD);
     }//GEN-LAST:event_btnPasswordActionPerformed
 
+    private void btnAdminPinActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAdminPinActionPerformed
+        app.go(MainFrame.ADMIN_PIN);
+    }//GEN-LAST:event_btnAdminPinActionPerformed
+
     private void btnLogsActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnLogsActionPerformed
         app.go(MainFrame.LOGS);
     }//GEN-LAST:event_btnLogsActionPerformed
@@ -273,6 +301,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JButton btnAdminPin;
     private javax.swing.JButton btnBack;
     private javax.swing.JButton btnLogout;
     private javax.swing.JButton btnLogs;
@@ -285,6 +314,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
     private javax.swing.JLabel lblMembers;
     private javax.swing.JLabel lblTitle;
     private javax.swing.JLabel lblTopUp;
+    private javax.swing.JLabel lblWaiting;
     private javax.swing.JLabel lblWarnings;
     private javax.swing.JScrollPane scrTable;
     private javax.swing.JTable tblExpiring;
@@ -293,6 +323,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
     private javax.swing.JTextField txtExpiring;
     private javax.swing.JTextField txtMembers;
     private javax.swing.JTextField txtTopUp;
+    private javax.swing.JTextField txtWaiting;
     private javax.swing.JTextField txtWarnings;
     // End of variables declaration//GEN-END:variables
 

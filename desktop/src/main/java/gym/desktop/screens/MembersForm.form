@@ -44,6 +44,8 @@
               <EmptySpace max="-2" attributes="0"/>
               <Component id="btnLost" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
+              <Component id="btnBroken" min="-2" max="-2" attributes="0"/>
+              <EmptySpace max="-2" attributes="0"/>
               <Component id="btnReissue" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="btnSearch" min="-2" max="-2" attributes="0"/>
@@ -68,6 +70,7 @@
                   <Component alignment="3" id="btnBack" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnHistory" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnLost" min="-2" max="-2" attributes="0"/>
+                  <Component alignment="3" id="btnBroken" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnReissue" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnSearch" min="-2" max="-2" attributes="0"/>
               </Group>
@@ -125,6 +128,14 @@
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnLostActionPerformed"/>
+      </Events>
+    </Component>
+    <Component class="javax.swing.JButton" name="btnBroken">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Đổi thẻ hỏng"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnBrokenActionPerformed"/>
       </Events>
     </Component>
     <Component class="javax.swing.JButton" name="btnReissue">

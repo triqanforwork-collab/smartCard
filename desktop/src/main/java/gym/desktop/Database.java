@@ -28,7 +28,7 @@ public class Database implements AutoCloseable {
     static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     public static final String TOPUP = "Nạp tiền", PAY = "Thanh toán", TRANSFER = "Chuyển số dư";
-    public static final String ACTIVE = "Hoạt động", LOST = "Đã báo mất";
+    public static final String ACTIVE = "Hoạt động", LOST = "Đã báo mất", BROKEN = "Thẻ hỏng";
 
     public record GymPackage(int id, String name, int months, long price, boolean active) {
         @Override
@@ -52,7 +52,12 @@ public class Database implements AutoCloseable {
     public record LogEntry(String time, String admin, String maHV, String action, String detail, boolean warning) {
     }
 
-    public record Stats(int members, int active, int expired, int expiringSoon, long topUpThisMonth,
+    /**
+     * Số liệu màn Quản trị. Hai nhóm độc lập: gói tập (còn hạn + hết hạn + chưa có gói = tổng hội viên)
+     * và thẻ chờ cấp lại (báo mất, thẻ hỏng: tự hết khi Admin cấp thẻ mới vì trạng thái về Hoạt động).
+     */
+    public record Stats(int members, int active, int expired, int noPackage, int lostCards, int brokenCards,
+                        int expiringSoon, long topUpThisMonth,
                         int checkInsToday, int warningsToday) {
     }
 
@@ -155,11 +160,22 @@ public class Database implements AutoCloseable {
                         hanh_dong TEXT NOT NULL,
                         chi_tiet  TEXT,
                         canh_bao  INTEGER NOT NULL""".formatted(id) + tail);
+            st.execute("""
+                    CREATE TABLE IF NOT EXISTS admin_pins (
+                        ver        INTEGER PRIMARY KEY,
+                        salt       BLOB NOT NULL,
+                        hash       BLOB NOT NULL,
+                        iterations INTEGER NOT NULL,
+                        created_at TEXT NOT NULL""" + tail);
             // Cột thêm sau: CSDL tạo từ bản cũ được bổ sung, dữ liệu giữ nguyên
             addColumnIfMissing("members", "the_so", "INTEGER NOT NULL DEFAULT 1");
             addColumnIfMissing("members", "trang_thai", "VARCHAR(30) NOT NULL DEFAULT '" + ACTIVE + "'");
             addColumnIfMissing("transactions", "the_so", "INTEGER NOT NULL DEFAULT 1");
             addColumnIfMissing("packages", "dang_ban", "INTEGER NOT NULL DEFAULT 1");
+            addColumnIfMissing("members", "pin_admin_ver", "INTEGER NOT NULL DEFAULT 1");
+            addColumnIfMissing("admins", "rec_salt", "BLOB");
+            addColumnIfMissing("admins", "rec_hash", "BLOB");
+            addColumnIfMissing("lost_cards", "ly_do", "VARCHAR(30) NOT NULL DEFAULT '" + LOST + "'");
             // Giá theo nghìn đồng, Admin sửa được ở màn Quản lý gói tập
             st.execute("""
                     INSERT %s INTO packages (id, ten, so_thang, gia) VALUES
@@ -223,15 +239,138 @@ public class Database implements AutoCloseable {
         }
     }
 
-    public void createAdmin(String username, char[] password) throws SQLException {
+    /** Tạo tài khoản Admin; trả về mã khôi phục (chỉ hiện một lần, CSDL chỉ lưu bản băm). */
+    public String createAdmin(String username, char[] password) throws SQLException {
         byte[] salt = newSalt();
-        try (PreparedStatement ps = conn.prepareStatement("INSERT INTO admins VALUES (?, ?, ?, ?, ?)")) {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO admins (username, salt, hash, iterations, created_at) VALUES (?, ?, ?, ?, ?)")) {
             ps.setString(1, username);
             ps.setBytes(2, salt);
             ps.setBytes(3, pbkdf2(password, salt, PBKDF2_ITERATIONS));
             ps.setInt(4, PBKDF2_ITERATIONS);
             ps.setString(5, now());
             ps.executeUpdate();
+        }
+        return newRecoveryCode(username);
+    }
+
+    // ---------- Mã khôi phục: dùng khi Admin quên mật khẩu hoặc quên PIN Admin ----------
+    // 12 ký tự ngẫu nhiên (bỏ các ký tự dễ nhầm 0/O, 1/I), lưu PBKDF2 có salt như mật khẩu. Dùng xong thì đổi mã mới.
+
+    private static final String CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    /** Sinh mã khôi phục mới cho Admin (mã cũ hết hiệu lực), trả về mã dạng XXXX-XXXX-XXXX. */
+    public String newRecoveryCode(String username) throws SQLException {
+        SecureRandom r = new SecureRandom();
+        StringBuilder code = new StringBuilder();
+        for (int i = 0; i < 12; i++) {
+            if (i > 0 && i % 4 == 0) code.append('-');
+            code.append(CODE_CHARS.charAt(r.nextInt(CODE_CHARS.length())));
+        }
+        byte[] salt = newSalt();
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE admins SET rec_salt = ?, rec_hash = ? WHERE username = ?")) {
+            ps.setBytes(1, salt);
+            ps.setBytes(2, pbkdf2(normalizeCode(code.toString()), salt, PBKDF2_ITERATIONS));
+            ps.setString(3, username);
+            ps.executeUpdate();
+        }
+        return code.toString();
+    }
+
+    /** Admin đã có mã khôi phục chưa (tài khoản tạo từ bản cũ thì chưa có). */
+    public boolean hasRecoveryCode(String username) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT rec_hash FROM admins WHERE username = ?")) {
+            ps.setString(1, username);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getBytes(1) != null;
+            }
+        }
+    }
+
+    /** Đúng mã khôi phục thì trả true (không phân biệt hoa thường, dấu gạch, dấu cách). */
+    public boolean checkRecoveryCode(String username, String code) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT rec_salt, rec_hash FROM admins WHERE username = ?")) {
+            ps.setString(1, username);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next() || rs.getBytes(2) == null) return false;
+                return MessageDigest.isEqual(pbkdf2(normalizeCode(code), rs.getBytes(1), PBKDF2_ITERATIONS), rs.getBytes(2));
+            }
+        }
+    }
+
+    private static char[] normalizeCode(String code) {
+        return code.toUpperCase().replaceAll("[^A-Z0-9]", "").toCharArray();
+    }
+
+    /**
+     * Quên mật khẩu: đúng mã khôi phục thì đặt mật khẩu mới và trả về mã khôi phục mới (mã cũ hết hiệu lực).
+     * Sai thì trả null.
+     */
+    public String resetAdminPassword(String username, String code, char[] newPassword) throws SQLException {
+        if (!checkRecoveryCode(username, code)) return null;
+        setAdminPassword(username, newPassword);
+        return newRecoveryCode(username);
+    }
+
+    // ---------- PIN Admin chung của phòng gym ----------
+    // Mọi thẻ dùng chung một PIN Admin. CSDL chỉ lưu bản băm PBKDF2, mỗi lần đổi là một phiên bản mới;
+    // members.pin_admin_ver cho biết thẻ của hội viên đang dùng phiên bản nào (thẻ cũ được đổi khi ra quầy).
+
+    /** Phiên bản PIN Admin hiện tại, 0 nếu chưa đặt. */
+    public int adminPinVersion() throws SQLException {
+        return (int) longQuery("SELECT COALESCE(MAX(ver), 0) FROM admin_pins");
+    }
+
+    /** Đặt PIN Admin mới (phiên bản kế tiếp), trả về số phiên bản. */
+    public int setAdminPin(String pin) throws SQLException {
+        int ver = adminPinVersion() + 1;
+        byte[] salt = newSalt();
+        try (PreparedStatement ps = conn.prepareStatement("INSERT INTO admin_pins VALUES (?, ?, ?, ?, ?)")) {
+            ps.setInt(1, ver);
+            ps.setBytes(2, salt);
+            ps.setBytes(3, pbkdf2(pin.toCharArray(), salt, PBKDF2_ITERATIONS));
+            ps.setInt(4, PBKDF2_ITERATIONS);
+            ps.setString(5, now());
+            ps.executeUpdate();
+        }
+        return ver;
+    }
+
+    /** PIN có đúng PIN Admin của phiên bản ver không. */
+    public boolean checkAdminPin(String pin, int ver) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT salt, hash, iterations FROM admin_pins WHERE ver = ?")) {
+            ps.setInt(1, ver);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && MessageDigest.isEqual(pbkdf2(pin.toCharArray(), rs.getBytes(1), rs.getInt(3)), rs.getBytes(2));
+            }
+        }
+    }
+
+    /** Phiên bản PIN Admin đang nằm trên thẻ hiện tại của hội viên. */
+    public int memberAdminPinVersion(String maHV) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT pin_admin_ver FROM members WHERE ma_hv = ?")) {
+            ps.setString(1, maHV);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        }
+    }
+
+    public void setMemberAdminPinVersion(String maHV, int ver) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE members SET pin_admin_ver = ? WHERE ma_hv = ?")) {
+            ps.setInt(1, ver);
+            ps.setString(2, maHV);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Mã hội viên có thẻ hiện tại mang khóa công khai này (dùng khi thẻ bị khóa PIN, chưa đọc được thông tin). */
+    public String memberByKey(PublicKey key) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT ma_hv FROM members WHERE public_key = ?")) {
+            ps.setBytes(1, key.getEncoded());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
         }
     }
 
@@ -250,6 +389,11 @@ public class Database implements AutoCloseable {
     /** Đổi mật khẩu: kiểm tra mật khẩu cũ, lưu bản băm mới với salt mới. Sai mật khẩu cũ thì trả false. */
     public boolean changeAdminPassword(String username, char[] oldPassword, char[] newPassword) throws SQLException {
         if (!checkAdmin(username, oldPassword)) return false;
+        setAdminPassword(username, newPassword);
+        return true;
+    }
+
+    private void setAdminPassword(String username, char[] newPassword) throws SQLException {
         byte[] salt = newSalt();
         try (PreparedStatement ps = conn.prepareStatement(
                 "UPDATE admins SET salt = ?, hash = ?, iterations = ? WHERE username = ?")) {
@@ -259,7 +403,6 @@ public class Database implements AutoCloseable {
             ps.setString(4, username);
             ps.executeUpdate();
         }
-        return true;
     }
 
     private static byte[] newSalt() {
@@ -282,8 +425,8 @@ public class Database implements AutoCloseable {
     /** Lưu hội viên mới khi phát hành thẻ, kèm khóa công khai RSA của thẻ. */
     public void addMember(MemberInfo m, PublicKey cardKey) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("""
-                INSERT INTO members (ma_hv, ho_ten, ngay_sinh, sdt, goi_tap, han_goi, public_key, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""")) {
+                INSERT INTO members (ma_hv, ho_ten, ngay_sinh, sdt, goi_tap, han_goi, public_key, created_at, pin_admin_ver)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""")) {
             ps.setString(1, m.maHV);
             ps.setString(2, m.hoTen);
             ps.setString(3, m.ngaySinh);
@@ -292,6 +435,7 @@ public class Database implements AutoCloseable {
             ps.setString(6, m.hanGoi);
             ps.setBytes(7, cardKey.getEncoded());
             ps.setString(8, now());
+            ps.setInt(9, adminPinVersion());
             ps.executeUpdate();
         }
     }
@@ -379,17 +523,25 @@ public class Database implements AutoCloseable {
 
     // ==================== Mất thẻ, cấp lại thẻ ====================
 
-    /** Báo mất: lưu khóa công khai của thẻ đang dùng vào danh sách thẻ mất, chuyển trạng thái sang Đã báo mất. */
     public void reportLost(String maHV) throws SQLException {
+        disableCard(maHV, LOST);
+    }
+
+    /**
+     * Vô hiệu thẻ đang dùng: lưu khóa công khai của thẻ vào danh sách thẻ bị vô hiệu, chuyển trạng thái sang
+     * reason = LOST (báo mất) hoặc BROKEN (thẻ hỏng, khóa PIN Admin). Sau đó Admin cấp thẻ mới cho hội viên.
+     */
+    public void disableCard(String maHV, String reason) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("""
-                INSERT INTO lost_cards (ma_hv, the_so, public_key, thoi_gian)
-                SELECT ma_hv, the_so, public_key, ? FROM members WHERE ma_hv = ?""")) {
+                INSERT INTO lost_cards (ma_hv, the_so, public_key, thoi_gian, ly_do)
+                SELECT ma_hv, the_so, public_key, ?, ? FROM members WHERE ma_hv = ?""")) {
             ps.setString(1, now());
-            ps.setString(2, maHV);
+            ps.setString(2, reason);
+            ps.setString(3, maHV);
             ps.executeUpdate();
         }
         try (PreparedStatement ps = conn.prepareStatement("UPDATE members SET trang_thai = ? WHERE ma_hv = ?")) {
-            ps.setString(1, LOST);
+            ps.setString(1, reason);
             ps.setString(2, maHV);
             ps.executeUpdate();
         }
@@ -411,16 +563,17 @@ public class Database implements AutoCloseable {
     /** Cấp lại thẻ: thay khóa công khai bằng khóa của thẻ mới, tăng số thứ tự thẻ, trạng thái về Hoạt động. */
     public void reissue(MemberInfo m, PublicKey newKey) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("""
-                UPDATE members SET public_key = ?, the_so = the_so + 1, trang_thai = ?,
+                UPDATE members SET public_key = ?, the_so = the_so + 1, trang_thai = ?, pin_admin_ver = ?,
                     ho_ten = ?, ngay_sinh = ?, sdt = ?, goi_tap = ?, han_goi = ? WHERE ma_hv = ?""")) {
             ps.setBytes(1, newKey.getEncoded());
             ps.setString(2, ACTIVE);
-            ps.setString(3, m.hoTen);
-            ps.setString(4, m.ngaySinh);
-            ps.setString(5, m.sdt);
-            ps.setString(6, m.goiTap);
-            ps.setString(7, m.hanGoi);
-            ps.setString(8, m.maHV);
+            ps.setInt(3, adminPinVersion());
+            ps.setString(4, m.hoTen);
+            ps.setString(5, m.ngaySinh);
+            ps.setString(6, m.sdt);
+            ps.setString(7, m.goiTap);
+            ps.setString(8, m.hanGoi);
+            ps.setString(9, m.maHV);
             ps.executeUpdate();
         }
     }
@@ -581,15 +734,18 @@ public class Database implements AutoCloseable {
     }
 
     public Stats stats(LocalDate today) throws SQLException {
-        int total = 0, active = 0;
-        for (MemberInfo m : findMembers("")) {
+        int total = 0, active = 0, expired = 0, lost = 0, broken = 0;
+        for (Member m : members("")) {
             total++;
-            LocalDate e = expiry(m.hanGoi);
+            LocalDate e = expiry(m.info().hanGoi);
             if (e != null && !e.isBefore(today)) active++;
+            else if (e != null) expired++;
+            if (LOST.equals(m.status())) lost++;
+            else if (BROKEN.equals(m.status())) broken++;
         }
         String day = today.format(DATE);                 // dd/MM/yyyy
         String month = "__/" + day.substring(3) + "%";   // __/MM/yyyy%
-        return new Stats(total, active, total - active, expiringWithin(7, today).size(),
+        return new Stats(total, active, expired, total - active - expired, lost, broken, expiringWithin(7, today).size(),
                 longQuery("SELECT COALESCE(SUM(so_tien), 0) FROM transactions WHERE loai = ? AND thoi_gian LIKE ?", TOPUP, month),
                 (int) longQuery("SELECT COUNT(*) FROM checkins WHERE thoi_gian LIKE ?", day + "%"),
                 (int) longQuery("SELECT COUNT(*) FROM logs WHERE canh_bao = 1 AND thoi_gian LIKE ?", day + "%"));

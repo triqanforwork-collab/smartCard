@@ -28,12 +28,16 @@
                           <Component id="lblUser" min="-2" max="-2" attributes="0"/>
                           <Component id="lblPassword" min="-2" max="-2" attributes="0"/>
                           <Component id="lblPassword2" min="-2" max="-2" attributes="0"/>
+                          <Component id="lblAdminPin" min="-2" max="-2" attributes="0"/>
+                          <Component id="lblAdminPin2" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace min="-2" pref="18" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
                           <Component id="txtUser" min="-2" pref="220" max="-2" attributes="0"/>
                           <Component id="txtPassword" min="-2" pref="220" max="-2" attributes="0"/>
                           <Component id="txtPassword2" min="-2" pref="220" max="-2" attributes="0"/>
+                          <Component id="txtAdminPin" min="-2" pref="220" max="-2" attributes="0"/>
+                          <Component id="txtAdminPin2" min="-2" pref="220" max="-2" attributes="0"/>
                       </Group>
                   </Group>
                   <Component id="lblStatus" min="-2" max="-2" attributes="0"/>
@@ -43,6 +47,8 @@
           <Group type="102" alignment="1" attributes="0">
               <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
               <Component id="btnBack" min="-2" max="-2" attributes="0"/>
+              <EmptySpace max="-2" attributes="0"/>
+              <Component id="btnForgot" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
               <Component id="btnCreate" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
@@ -71,11 +77,22 @@
                   <Component alignment="3" id="lblPassword2" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="txtPassword2" min="-2" max="-2" attributes="0"/>
               </Group>
+              <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
+              <Group type="103" groupAlignment="3" attributes="0">
+                  <Component alignment="3" id="lblAdminPin" min="-2" max="-2" attributes="0"/>
+                  <Component alignment="3" id="txtAdminPin" min="-2" max="-2" attributes="0"/>
+              </Group>
+              <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
+              <Group type="103" groupAlignment="3" attributes="0">
+                  <Component alignment="3" id="lblAdminPin2" min="-2" max="-2" attributes="0"/>
+                  <Component alignment="3" id="txtAdminPin2" min="-2" max="-2" attributes="0"/>
+              </Group>
               <EmptySpace min="-2" pref="12" max="-2" attributes="0"/>
               <Component id="lblStatus" min="-2" max="-2" attributes="0"/>
               <EmptySpace min="24" pref="24" max="32767" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component alignment="3" id="btnBack" min="-2" max="-2" attributes="0"/>
+                  <Component alignment="3" id="btnForgot" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnCreate" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="btnLogin" min="-2" max="-2" attributes="0"/>
               </Group>
@@ -114,6 +131,20 @@
     </Component>
     <Component class="javax.swing.JPasswordField" name="txtPassword2">
     </Component>
+    <Component class="javax.swing.JLabel" name="lblAdminPin">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="PIN Admin phòng gym (khi tạo)"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JPasswordField" name="txtAdminPin">
+    </Component>
+    <Component class="javax.swing.JLabel" name="lblAdminPin2">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Nhập lại PIN Admin (khi tạo)"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JPasswordField" name="txtAdminPin2">
+    </Component>
     <Component class="javax.swing.JLabel" name="lblStatus">
       <Properties>
         <Property name="text" type="java.lang.String" value=" "/>
@@ -125,6 +156,14 @@
       </Properties>
       <Events>
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnBackActionPerformed"/>
+      </Events>
+    </Component>
+    <Component class="javax.swing.JButton" name="btnForgot">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Quên mật khẩu"/>
+      </Properties>
+      <Events>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnForgotActionPerformed"/>
       </Events>
     </Component>
     <Component class="javax.swing.JButton" name="btnCreate">

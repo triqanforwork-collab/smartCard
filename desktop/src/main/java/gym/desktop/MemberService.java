@@ -8,6 +8,7 @@ import java.security.Signature;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.function.UnaryOperator;
 
 /**
  * Nghiệp vụ hội viên: phát hành thẻ, đăng nhập (kiểm tra thẻ thật bằng RSA, thẻ đã báo mất),
@@ -33,6 +34,7 @@ public class MemberService {
         if (db.memberExists(info.maHV)) {
             throw new CardService.CardError(0, "Mã hội viên " + info.maHV + " đã có trong CSDL");
         }
+        prepareAdminPin(null, adminPin, null);
         card.init(pin, adminPin, info);
         card.verifyPin(pin);
         if (photo != null && photo.length > 0) card.setPhoto(photo);
@@ -55,7 +57,7 @@ public class MemberService {
         if (db.isLostCard(info.maHV, card.getPublicKey())) {
             db.log(info.maHV, "Dùng thẻ đã báo mất", "Thẻ bị từ chối", true);
             card.disconnect();
-            throw new CardService.CardError(0, "Thẻ này đã được báo mất, không sử dụng được. Liên hệ quầy để được cấp lại thẻ.");
+            throw new CardService.CardError(0, "Thẻ này đã bị vô hiệu (báo mất hoặc đã đổi thẻ), không sử dụng được. Liên hệ quầy để được cấp lại thẻ.");
         }
         byte[] nonce = nonce();
         if (!verify(key, CardService.authData(nonce), card.auth(nonce))) {
@@ -93,37 +95,83 @@ public class MemberService {
         db.log(maHV, "Đổi PIN", null, false);
     }
 
-    /** Admin mở khóa thẻ bằng PIN Admin (thẻ đang khóa nên chưa đọc được mã hội viên). */
-    public void unblock(String adminPin) throws CardException, CardService.CardError {
+    /**
+     * Kiểm tra PIN Admin với bản băm trong CSDL TRƯỚC khi gửi xuống thẻ: sai thì báo lỗi ngay, thẻ không bị trừ lượt thử.
+     * Nếu thẻ của hội viên còn mang PIN Admin phiên bản cũ (Admin đã đổi PIN sau khi phát hành thẻ) thì hỏi PIN cũ
+     * qua askOldPin rồi đổi PIN Admin trên thẻ sang PIN hiện tại (lệnh CHANGE_ADMIN_PIN).
+     * maHV = null: thẻ trắng (phát hành, cấp lại), chỉ kiểm tra PIN.
+     */
+    public void prepareAdminPin(String maHV, String adminPin, UnaryOperator<String> askOldPin)
+            throws CardException, CardService.CardError, SQLException {
+        int cur = db.adminPinVersion();
+        if (cur == 0) {
+            throw new CardService.CardError(0, "Chưa đặt PIN Admin của phòng gym (Quản trị → Đổi PIN Admin)");
+        }
+        if (!db.checkAdminPin(adminPin, cur)) {
+            db.log(maHV, "Sai PIN Admin", "Bị chặn trước khi gửi xuống thẻ", true);
+            throw new CardService.CardError(0, "PIN Admin không đúng (thẻ không bị trừ lượt thử)");
+        }
+        int ver = maHV == null ? cur : db.memberAdminPinVersion(maHV);
+        if (ver >= cur) return;
+        String old = askOldPin == null ? null : askOldPin.apply("Thẻ của " + maHV + " được phát hành trước lần đổi PIN Admin gần nhất "
+                + "nên còn dùng PIN Admin cũ.\nNhập PIN Admin cũ để cập nhật thẻ sang PIN Admin hiện tại:");
+        if (old == null || old.isBlank()) {
+            throw new CardService.CardError(0, "Thẻ của " + maHV + " còn dùng PIN Admin cũ. Không nhớ PIN cũ thì dùng "
+                    + "Đổi thẻ (thẻ hỏng / khóa PIN Admin) ở Danh sách hội viên.");
+        }
+        if (!db.checkAdminPin(old, ver)) {
+            db.log(maHV, "Sai PIN Admin cũ", "Phiên bản " + ver + ", bị chặn trước khi gửi xuống thẻ", true);
+            throw new CardService.CardError(0, "PIN Admin cũ không đúng (thẻ không bị trừ lượt thử)");
+        }
+        card.changeAdminPin(old, adminPin);
+        db.setMemberAdminPinVersion(maHV, cur);
+        db.log(maHV, "Cập nhật PIN Admin trên thẻ", "Phiên bản " + ver + " → " + cur, false);
+    }
+
+    /** Mã hội viên của thẻ đang cắm, tra theo khóa công khai (không cần PIN hội viên). */
+    private String cardOwner() throws CardException, CardService.CardError, SQLException {
+        return db.memberByKey(card.getPublicKey());
+    }
+
+    /** Admin mở khóa thẻ bằng PIN Admin (thẻ đang khóa nên tra hội viên theo khóa công khai của thẻ). */
+    public void unblock(String adminPin, UnaryOperator<String> askOldPin)
+            throws CardException, CardService.CardError, SQLException {
+        String maHV = cardOwner();
+        prepareAdminPin(maHV, adminPin, askOldPin);
         try {
             card.unblock(adminPin);
-            db.log(null, "Mở khóa thẻ", null, false);
+            db.log(maHV, "Mở khóa thẻ", null, false);
         } catch (CardService.CardError e) {
-            db.log(null, "Mở khóa thẻ thất bại", e.getMessage(), true);
+            db.log(maHV, "Mở khóa thẻ thất bại", e.getMessage(), true);
             throw e;
         }
     }
 
     /** Admin đặt lại PIN cho hội viên quên PIN. */
-    public void resetPin(String adminPin, String newPin) throws CardException, CardService.CardError {
+    public void resetPin(String adminPin, String newPin, UnaryOperator<String> askOldPin)
+            throws CardException, CardService.CardError, SQLException {
+        String maHV = cardOwner();
+        prepareAdminPin(maHV, adminPin, askOldPin);
         try {
             card.resetPin(adminPin, newPin);
-            db.log(null, "Đặt lại PIN", null, false);
+            db.log(maHV, "Đặt lại PIN", null, false);
         } catch (CardService.CardError e) {
-            db.log(null, "Đặt lại PIN thất bại", e.getMessage(), true);
+            db.log(maHV, "Đặt lại PIN thất bại", e.getMessage(), true);
             throw e;
         }
     }
 
     /**
-     * Cấp lại thẻ cho hội viên đã báo mất thẻ: khởi tạo thẻ trắng với thông tin cũ, thay khóa công khai trong CSDL,
+     * Cấp lại thẻ cho hội viên đã báo mất thẻ hoặc thẻ hỏng: khởi tạo thẻ trắng với thông tin cũ, thay khóa công khai trong CSDL,
      * rồi nạp vào thẻ mới đúng số dư CSDL ghi nhận cho thẻ cũ (giao dịch "Chuyển số dư", có chữ ký RSA).
      */
     public void reissueCard(String pin, String adminPin, MemberInfo info, byte[] photo)
             throws CardException, CardService.CardError, SQLException {
-        if (!Database.LOST.equals(db.memberStatus(info.maHV))) {
-            throw new CardService.CardError(0, "Chỉ cấp lại thẻ cho hội viên đã báo mất thẻ");
+        String status = db.memberStatus(info.maHV);
+        if (!Database.LOST.equals(status) && !Database.BROKEN.equals(status)) {
+            throw new CardService.CardError(0, "Chỉ cấp lại thẻ cho hội viên đã báo mất thẻ hoặc thẻ hỏng");
         }
+        prepareAdminPin(null, adminPin, null);
         long oldBalance = db.expected(info.maHV).balance();
         card.init(pin, adminPin, info);
         card.verifyPin(pin);
