@@ -58,7 +58,7 @@ public class Database implements AutoCloseable {
      */
     public record Stats(int members, int active, int expired, int noPackage, int lostCards, int brokenCards,
                         int expiringSoon, long topUpThisMonth,
-                        int checkInsToday, int warningsToday) {
+                        int checkInsToday, int warningsToday, int inside) {
     }
 
     private final Connection conn;
@@ -176,6 +176,10 @@ public class Database implements AutoCloseable {
             addColumnIfMissing("admins", "rec_salt", "BLOB");
             addColumnIfMissing("admins", "rec_hash", "BLOB");
             addColumnIfMissing("lost_cards", "ly_do", "VARCHAR(30) NOT NULL DEFAULT '" + LOST + "'");
+            // Giờ check-out của lượt tập; lượt có từ trước khi có cột này coi như đã đóng ("-")
+            if (addColumnIfMissing("checkins", "ra_luc", "VARCHAR(20)")) {
+                st.execute("UPDATE checkins SET ra_luc = '" + CLOSED + "'");
+            }
             // Giá theo nghìn đồng, Admin sửa được ở màn Quản lý gói tập
             st.execute("""
                     INSERT %s INTO packages (id, ten, so_thang, gia) VALUES
@@ -184,13 +188,15 @@ public class Database implements AutoCloseable {
         }
     }
 
-    private void addColumnIfMissing(String table, String column, String definition) throws SQLException {
+    /** Thêm cột nếu chưa có; trả true nếu vừa thêm. */
+    private boolean addColumnIfMissing(String table, String column, String definition) throws SQLException {
         try (ResultSet rs = conn.getMetaData().getColumns(conn.getCatalog(), null, table, column)) {
-            if (rs.next()) return;
+            if (rs.next()) return false;
         }
         try (Statement st = conn.createStatement()) {
             st.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
         }
+        return true;
     }
 
     // ==================== Nhật ký hoạt động ====================
@@ -693,12 +699,83 @@ public class Database implements AutoCloseable {
     // ==================== Check-in ====================
 
     public void addCheckIn(String maHV) throws SQLException {
+        addCheckIn(maHV, LocalDateTime.now());
+    }
+
+    public void addCheckIn(String maHV, LocalDateTime time) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(
                 "INSERT INTO checkins (ma_hv, the_so, thoi_gian) VALUES (?, (SELECT the_so FROM members WHERE ma_hv = ?), ?)")) {
             ps.setString(1, maHV);
             ps.setString(2, maHV);
-            ps.setString(3, now());
+            ps.setString(3, time.format(TIME));
             ps.executeUpdate();
+        }
+    }
+
+    /** Giá trị ra_luc của lượt tập bị đóng tự động (quên check-out) hoặc có từ bản cũ. */
+    static final String CLOSED = "-";
+
+    /** Một lượt tập: giờ vào, giờ ra (out = null: đang trong phòng; closed: đã đóng, kể cả đóng tự động). */
+    public record Visit(long id, LocalDateTime in, LocalDateTime out, boolean closed) {
+    }
+
+    /** Lượt tập gần nhất của hội viên (null nếu chưa check-in lần nào). */
+    public Visit lastVisit(String maHV) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(
+                "SELECT id, thoi_gian, ra_luc FROM checkins WHERE ma_hv = ? ORDER BY id DESC LIMIT 1")) {
+            ps.setString(1, maHV);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+                String out = rs.getString(3);
+                return new Visit(rs.getLong(1), LocalDateTime.parse(rs.getString(2), TIME),
+                        out == null || out.equals(CLOSED) ? null : LocalDateTime.parse(out, TIME), out != null);
+            }
+        }
+    }
+
+    /** Check-out lượt tập; time = null thì đóng tự động (quên check-out). */
+    public void checkOut(long visitId, LocalDateTime time) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE checkins SET ra_luc = ? WHERE id = ?")) {
+            ps.setString(1, time == null ? CLOSED : time.format(TIME));
+            ps.setLong(2, visitId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Số người đang trong phòng: lượt chưa check-out, vào trong vòng maxHours giờ trước now. */
+    public int inside(LocalDateTime now, int maxHours) throws SQLException {
+        int n = 0;
+        try (Statement st = conn.createStatement(); ResultSet rs = st.executeQuery("SELECT thoi_gian FROM checkins WHERE ra_luc IS NULL")) {
+            while (rs.next()) {
+                LocalDateTime in = LocalDateTime.parse(rs.getString(1), TIME);
+                if (!in.isAfter(now) && in.isAfter(now.minusHours(maxHours)) && in.toLocalDate().equals(now.toLocalDate())) n++;
+            }
+        }
+        return n;
+    }
+
+    /** Mã hội viên kế tiếp: HV + (số lớn nhất trong các mã dạng HV<số>, không phân biệt hoa thường) + 1, đệm 3 chữ số. */
+    public String nextMemberId() throws SQLException {
+        int max = 0;
+        for (Member m : members("")) {
+            java.util.regex.Matcher x = java.util.regex.Pattern.compile("(?i)HV(\\d+)").matcher(m.info().maHV);
+            if (x.matches()) max = Math.max(max, Integer.parseInt(x.group(1)));
+        }
+        return String.format("HV%03d", max + 1);
+    }
+
+    /** Hội viên có mã đúng bằng maHV (không tìm gần đúng); null nếu không có. */
+    public MemberInfo member(String maHV) throws SQLException {
+        return findMembers(maHV).stream().filter(m -> m.maHV.equals(maHV)).findFirst().orElse(null);
+    }
+
+    /** Mã hội viên của thẻ đã bị vô hiệu (báo mất / đổi thẻ) mang khóa công khai này; null nếu không phải. */
+    public String disabledCardOwner(PublicKey key) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT ma_hv FROM lost_cards WHERE public_key = ?")) {
+            ps.setBytes(1, key.getEncoded());
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
         }
     }
 
@@ -748,7 +825,8 @@ public class Database implements AutoCloseable {
         return new Stats(total, active, expired, total - active - expired, lost, broken, expiringWithin(7, today).size(),
                 longQuery("SELECT COALESCE(SUM(so_tien), 0) FROM transactions WHERE loai = ? AND thoi_gian LIKE ?", TOPUP, month),
                 (int) longQuery("SELECT COUNT(*) FROM checkins WHERE thoi_gian LIKE ?", day + "%"),
-                (int) longQuery("SELECT COUNT(*) FROM logs WHERE canh_bao = 1 AND thoi_gian LIKE ?", day + "%"));
+                (int) longQuery("SELECT COUNT(*) FROM logs WHERE canh_bao = 1 AND thoi_gian LIKE ?", day + "%"),
+                today.equals(LocalDate.now()) ? inside(LocalDateTime.now(), MemberService.MAX_STAY_HOURS) : 0);
     }
 
     private long longQuery(String sql, String... params) throws SQLException {

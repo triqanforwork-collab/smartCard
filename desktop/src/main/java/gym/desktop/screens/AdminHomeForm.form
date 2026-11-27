@@ -31,6 +31,7 @@
                           <Component id="lblExpiring" min="-2" max="-2" attributes="0"/>
                           <Component id="lblTopUp" min="-2" max="-2" attributes="0"/>
                           <Component id="lblCheckIns" min="-2" max="-2" attributes="0"/>
+                          <Component id="lblInside" min="-2" max="-2" attributes="0"/>
                           <Component id="lblWarnings" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace min="-2" pref="18" max="-2" attributes="0"/>
@@ -41,6 +42,7 @@
                           <Component id="txtExpiring" min="-2" pref="220" max="-2" attributes="0"/>
                           <Component id="txtTopUp" min="-2" pref="220" max="-2" attributes="0"/>
                           <Component id="txtCheckIns" min="-2" pref="220" max="-2" attributes="0"/>
+                          <Component id="txtInside" min="-2" pref="220" max="-2" attributes="0"/>
                           <Component id="txtWarnings" min="-2" pref="220" max="-2" attributes="0"/>
                       </Group>
                   </Group>
@@ -101,6 +103,11 @@
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component alignment="3" id="lblCheckIns" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="txtCheckIns" min="-2" max="-2" attributes="0"/>
+              </Group>
+              <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
+              <Group type="103" groupAlignment="3" attributes="0">
+                  <Component alignment="3" id="lblInside" min="-2" max="-2" attributes="0"/>
+                  <Component alignment="3" id="txtInside" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
@@ -189,6 +196,16 @@
       </Properties>
     </Component>
     <Component class="javax.swing.JTextField" name="txtCheckIns">
+      <Properties>
+        <Property name="editable" type="boolean" value="false"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JLabel" name="lblInside">
+      <Properties>
+        <Property name="text" type="java.lang.String" value="Đang trong phòng (chưa check-out)"/>
+      </Properties>
+    </Component>
+    <Component class="javax.swing.JTextField" name="txtInside">
       <Properties>
         <Property name="editable" type="boolean" value="false"/>
       </Properties>

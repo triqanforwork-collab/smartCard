@@ -71,6 +71,15 @@ public class DbCheck {
 
             db.addCheckIn("HV900");
             check("Check-in ghi 1 lượt", db.checkInCount("HV900") == 1);
+            Database.Visit v = db.lastVisit("HV900");
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            check("Lượt tập vừa ghi đang mở (chưa check-out), có 1 người trong phòng",
+                    v != null && !v.closed() && java.time.Duration.between(v.in(), now).abs().toMinutes() < 2
+                            && db.lastVisit("HV999") == null && db.inside(now, 6) == 1);
+            db.checkOut(v.id(), now);
+            check("Check-out: lượt tập đóng, ghi giờ ra, trong phòng còn 0 người",
+                    db.lastVisit("HV900").closed() && db.lastVisit("HV900").out() != null && db.inside(now, 6) == 0);
+            check("Tra hội viên theo mã chính xác", db.member("HV900") != null && db.member("HV90") == null);
             db.setCurrentAdmin("admin");
             db.log("HV900", "Số dư lệch", "thử", true);
             check("Nhật ký: 1 cảnh báo, ghi kèm Admin",
@@ -110,6 +119,8 @@ public class DbCheck {
             check("Sắp hết hạn trong 7 ngày: HV900", db.expiringWithin(7, LocalDate.now()).size() == 1);
 
             db.reportLost("HV900");
+            check("Thẻ báo mất tra ra được chủ thẻ theo khóa công khai (check-in không PIN chặn được)",
+                    "HV900".equals(db.disabledCardOwner(k1)) && db.disabledCardOwner(k2) == null);
             check("Báo mất: trạng thái Đã báo mất, thẻ cũ nằm trong danh sách mất",
                     Database.LOST.equals(db.memberStatus("HV900")) && db.isLostCard("HV900", k1));
             db.reissue(m, k2);
@@ -129,6 +140,7 @@ public class DbCheck {
             db.addMember(old, g.generateKeyPair().getPublic());
             db.reportLost("HV902");
             Database.Stats st = db.stats(LocalDate.now());
+            check("Mã hội viên kế tiếp tự sinh: HV903 (sau HV900, HV901, HV902)", "HV903".equals(db.nextMemberId()));
             check("Thống kê gói: 3 hội viên = 1 còn hạn + 1 hết hạn + 1 chưa có gói (chưa có gói không bị tính là hết hạn)",
                     st.members() == 3 && st.active() == 1 && st.expired() == 1 && st.noPackage() == 1);
             check("Thẻ chờ cấp lại: 1 báo mất (HV902), 1 thẻ hỏng (HV900)", st.lostCards() == 1 && st.brokenCards() == 1);

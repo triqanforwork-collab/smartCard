@@ -6,7 +6,10 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.function.UnaryOperator;
 
@@ -183,23 +186,69 @@ public class MemberService {
         db.log(info.maHV, "Cấp lại thẻ", "Chuyển số dư " + oldBalance + " nghìn đồng sang thẻ mới", false);
     }
 
-    /** Kết quả check-in: hội viên và số ngày còn lại của gói. */
-    public record CheckIn(MemberInfo member, long daysLeft) {
+    /** Kết quả một lần quẹt thẻ ở quầy: vào (checkIn = true, kèm số ngày còn lại) hoặc ra (kèm thời gian tập). */
+    public record Swipe(MemberInfo member, boolean checkIn, long daysLeft, Duration stayed) {
     }
 
-    /** Check-in vào phòng tập: đăng nhập (thẻ thật, chưa báo mất), gói còn hạn thì ghi lượt tập. */
-    public CheckIn checkIn(String pin, LocalDate today) throws CardException, CardService.CardError, SQLException {
-        MemberInfo m = login(pin);
-        reconcile(m.maHV); // chỉ ghi nhật ký nếu lệch, không chặn việc vào tập
+    /** Gói còn từ chừng này ngày trở xuống thì nhắc gia hạn khi check-in. */
+    public static final int REMIND_DAYS = 7;
+    /** Lượt vào quá chừng này giờ (hoặc sang ngày khác) mà chưa check-out thì coi như quên check-out, tự đóng. */
+    public static final int MAX_STAY_HOURS = 6;
+    /** Hai lần quẹt cách nhau dưới chừng này thì bỏ qua lần sau (lỡ tay quẹt 2 lần). */
+    static final Duration DEBOUNCE = Duration.ofMinutes(1);
+
+    /**
+     * Quẹt thẻ ở quầy, không cần PIN (thẻ không phải giải mã dữ liệu, chỉ cần chứng minh là thẻ thật):
+     * đọc khóa công khai (GET_PUBKEY) → tra CSDL ra hội viên, chặn thẻ đã vô hiệu → thẻ ký nonce (AUTH) đúng khóa
+     * đã đăng ký. Sau đó: đang trong phòng thì check-out; đang ở ngoài thì check-in (gói phải còn hạn).
+     * Chống mượn thẻ: người đang trong phòng thì thẻ không check-in thêm được (quẹt lần nữa là check-out).
+     */
+    public Swipe swipe(LocalDateTime now) throws CardException, CardService.CardError, SQLException {
+        if (!card.isInitialized()) throw new IllegalStateException("Thẻ chưa được phát hành");
+        PublicKey key = card.getPublicKey();
+        String disabled = db.disabledCardOwner(key);
+        if (disabled != null) {
+            db.log(disabled, "Dùng thẻ đã báo mất", "Check-in bị từ chối", true);
+            throw new IllegalStateException("Thẻ này đã bị vô hiệu (báo mất hoặc đã đổi thẻ). Mời ra quầy.");
+        }
+        String maHV = db.memberByKey(key);
+        if (maHV == null) {
+            db.log(null, "Thẻ chưa đăng ký", "Check-in bị từ chối", true);
+            throw new IllegalStateException("Thẻ chưa được đăng ký tại phòng gym");
+        }
+        byte[] nonce = nonce();
+        if (!verify(key, CardService.authData(nonce), card.auth(nonce))) {
+            db.log(maHV, "Phát hiện thẻ giả", "Check-in: chữ ký AUTH không khớp khóa công khai đã đăng ký", true);
+            throw new IllegalStateException("Thẻ không hợp lệ (thẻ giả?)");
+        }
+        MemberInfo m = db.member(maHV);
+        String hhmm = "HH:mm";
+        Database.Visit v = db.lastVisit(maHV);
+        if (v != null && !v.closed()) {   // đang trong phòng
+            Duration stay = Duration.between(v.in(), now);
+            if (!stay.isNegative() && stay.compareTo(DEBOUNCE) < 0) {
+                throw new IllegalStateException(m.hoTen + " vừa check-in lúc " + v.in().format(DateTimeFormatter.ofPattern(hhmm)));
+            }
+            if (stay.toHours() < MAX_STAY_HOURS && v.in().toLocalDate().equals(now.toLocalDate())) {
+                db.checkOut(v.id(), now);
+                db.log(maHV, "Check-out", "Tập " + stay.toMinutes() + " phút", false);
+                return new Swipe(m, false, 0, stay);
+            }
+            db.checkOut(v.id(), null);   // quên check-out: đóng lượt cũ, lần quẹt này tính là check-in mới
+            db.log(maHV, "Quên check-out", "Lượt vào lúc " + v.in().format(Database.TIME) + " được đóng tự động", false);
+        } else if (v != null && v.out() != null && !now.isBefore(v.out()) && Duration.between(v.out(), now).compareTo(DEBOUNCE) < 0) {
+            throw new IllegalStateException(m.hoTen + " vừa check-out lúc " + v.out().format(DateTimeFormatter.ofPattern(hhmm)));
+        }
+        LocalDate today = now.toLocalDate();
         LocalDate e = Database.expiry(m.hanGoi);
         if (e == null || e.isBefore(today)) {
-            db.log(m.maHV, "Check-in bị từ chối", e == null ? "Chưa có gói tập" : "Gói hết hạn ngày " + m.hanGoi, false);
-            throw new IllegalStateException(e == null ? "Hội viên chưa có gói tập. Vui lòng gia hạn gói."
-                    : "Gói tập đã hết hạn ngày " + m.hanGoi + ". Vui lòng gia hạn gói.");
+            db.log(maHV, "Check-in bị từ chối", e == null ? "Chưa có gói tập" : "Gói hết hạn ngày " + m.hanGoi, false);
+            throw new IllegalStateException(e == null ? m.hoTen + " chưa có gói tập. Mời ra quầy gia hạn."
+                    : "Gói của " + m.hoTen + " đã hết hạn ngày " + m.hanGoi + ". Mời ra quầy gia hạn.");
         }
-        db.addCheckIn(m.maHV);
-        db.log(m.maHV, "Check-in", null, false);
-        return new CheckIn(m, ChronoUnit.DAYS.between(today, e));
+        db.addCheckIn(maHV, now);
+        db.log(maHV, "Check-in", null, false);
+        return new Swipe(m, true, ChronoUnit.DAYS.between(today, e), Duration.ZERO);
     }
 
     static byte[] nonce() {

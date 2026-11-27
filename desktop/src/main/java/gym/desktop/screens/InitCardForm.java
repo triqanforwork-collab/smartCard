@@ -8,6 +8,7 @@ import javax.swing.JOptionPane;
  * Admin phát hành thẻ mới: nhập thông tin, ảnh, PIN ban đầu và PIN Admin chung của phòng gym
  * (phần mềm kiểm tra với bản băm trong CSDL trước khi ghi lên thẻ).
  * Gói tập và hạn gói không nhập ở đây: được ghi khi hội viên thanh toán gia hạn lần đầu.
+ * Mã hội viên không nhập tay: phần mềm tự sinh HV + số thứ tự 3 chữ số (HV001, HV002...), xem Database.nextMemberId.
  * Nếu đang cấp lại thẻ (app.reissue khác null) thì điền sẵn thông tin và giữ nguyên gói, hạn gói của hội viên.
  */
 public class InitCardForm extends javax.swing.JPanel {
@@ -30,8 +31,6 @@ public class InitCardForm extends javax.swing.JPanel {
     private void initComponents() {
 
         lblTitle = new javax.swing.JLabel();
-        lblMaHV = new javax.swing.JLabel();
-        txtMaHV = new javax.swing.JTextField();
         lblHoTen = new javax.swing.JLabel();
         txtHoTen = new javax.swing.JTextField();
         lblNgaySinh = new javax.swing.JLabel();
@@ -57,8 +56,6 @@ public class InitCardForm extends javax.swing.JPanel {
 
         lblTitle.setFont(new java.awt.Font("Segoe UI", 1, 22)); // NOI18N
         lblTitle.setText("Khởi tạo thẻ");
-
-        lblMaHV.setText("Mã hội viên");
 
         lblHoTen.setText("Họ tên");
 
@@ -107,7 +104,6 @@ public class InitCardForm extends javax.swing.JPanel {
                     .addComponent(lblTitle)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(lblMaHV)
                             .addComponent(lblHoTen)
                             .addComponent(lblNgaySinh)
                             .addComponent(lblSdt)
@@ -116,7 +112,6 @@ public class InitCardForm extends javax.swing.JPanel {
                             .addComponent(lblAdminPin))
                         .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(txtMaHV, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtHoTen, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtNgaySinh, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtSdt, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -143,10 +138,6 @@ public class InitCardForm extends javax.swing.JPanel {
                 .addGap(24, 24, 24)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(lblMaHV)
-                            .addComponent(txtMaHV, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(10, 10, 10)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(lblHoTen)
                             .addComponent(txtHoTen, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -185,9 +176,14 @@ public class InitCardForm extends javax.swing.JPanel {
 
     private void formComponentShown(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentShown
         boolean again = app.reissue != null;
-        lblTitle.setText(again ? "Cấp lại thẻ cho " + app.reissue.maHV : "Khởi tạo thẻ");
+        String title = "Khởi tạo thẻ";
+        try {
+            title = again ? "Cấp lại thẻ cho " + app.reissue.maHV : "Khởi tạo thẻ – mã " + app.db.nextMemberId();
+        } catch (Exception e) {
+            app.error(e);
+        }
+        lblTitle.setText(title);
         fill(again ? app.reissue : new MemberInfo());
-        txtMaHV.setEditable(!again);
         txtPin.setText("");   // không giữ PIN của lần phát hành trước
         txtPin2.setText("");
         txtAdminPin.setText("");
@@ -230,7 +226,7 @@ public class InitCardForm extends javax.swing.JPanel {
                 // Khởi tạo thẻ, ghi ảnh, lưu hội viên + khóa công khai RSA vào CSDL (xem MemberService.issueCard)
                 app.members.issueCard(pin, admin, m, photoBytes);
                 app.member = m;
-                JOptionPane.showMessageDialog(this, "Khởi tạo thẻ thành công");
+                JOptionPane.showMessageDialog(this, "Khởi tạo thẻ thành công. Mã hội viên: " + m.maHV);
             }
             app.go(MainFrame.INFO);
         } catch (Exception e) {
@@ -240,14 +236,19 @@ public class InitCardForm extends javax.swing.JPanel {
         }
     }//GEN-LAST:event_btnInitActionPerformed
 
-    /** Gom 4 ô thông tin thành MemberInfo; cấp lại thẻ thì giữ gói tập, hạn gói đang có. */
-    private MemberInfo member() {
+    /**
+     * Gom các ô thông tin thành MemberInfo. Phát hành mới: mã hội viên tự sinh lúc bấm Khởi tạo (không trùng).
+     * Cấp lại thẻ: giữ mã, gói tập, hạn gói đang có.
+     */
+    private MemberInfo member() throws java.sql.SQLException {
         MemberInfo m = new MemberInfo();
         if (app.reissue != null) {
+            m.maHV = app.reissue.maHV;
             m.goiTap = app.reissue.goiTap;
             m.hanGoi = app.reissue.hanGoi;
+        } else {
+            m.maHV = app.db.nextMemberId();
         }
-        m.maHV = txtMaHV.getText().trim();
         m.hoTen = txtHoTen.getText().trim();
         m.ngaySinh = txtNgaySinh.getText().trim();
         m.sdt = txtSdt.getText().trim();
@@ -255,7 +256,6 @@ public class InitCardForm extends javax.swing.JPanel {
     }
 
     private void fill(MemberInfo m) {
-        txtMaHV.setText(m.maHV);
         txtHoTen.setText(m.hoTen);
         txtNgaySinh.setText(m.ngaySinh);
         txtSdt.setText(m.sdt);
@@ -268,7 +268,6 @@ public class InitCardForm extends javax.swing.JPanel {
     private javax.swing.JButton btnPhoto;
     private javax.swing.JLabel lblAdminPin;
     private javax.swing.JLabel lblHoTen;
-    private javax.swing.JLabel lblMaHV;
     private javax.swing.JLabel lblNgaySinh;
     private javax.swing.JLabel lblPhoto;
     private javax.swing.JLabel lblPin;
@@ -277,7 +276,6 @@ public class InitCardForm extends javax.swing.JPanel {
     private javax.swing.JLabel lblTitle;
     private javax.swing.JPasswordField txtAdminPin;
     private javax.swing.JTextField txtHoTen;
-    private javax.swing.JTextField txtMaHV;
     private javax.swing.JTextField txtNgaySinh;
     private javax.swing.JPasswordField txtPin;
     private javax.swing.JPasswordField txtPin2;

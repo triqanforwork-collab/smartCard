@@ -1,22 +1,32 @@
 package gym.desktop.screens;
 
-import gym.desktop.CardService;
 import gym.desktop.MainFrame;
 import gym.desktop.MemberService;
-import java.time.LocalDate;
+import java.awt.Color;
+import java.time.LocalDateTime;
+import java.util.List;
+import javax.smartcardio.CardException;
+import javax.smartcardio.CardTerminal;
+import javax.smartcardio.TerminalFactory;
+import javax.swing.SwingUtilities;
 
 /**
- * Quầy check-in của hội viên (không cần Admin): cắm thẻ, nhập PIN. Phần mềm kiểm tra thẻ thật, thẻ chưa báo mất,
- * gói còn hạn rồi ghi lượt tập vào CSDL. Xong mỗi lượt thì ngắt thẻ để người sau dùng.
+ * Quầy check-in / check-out tự động: hội viên chỉ quẹt thẻ, không nhập PIN, không bấm nút.
+ * Một luồng nền chờ thẻ được cắm vào (waitForCardPresent), gọi MemberService.swipe (thẻ thật bằng chữ ký RSA,
+ * chưa bị vô hiệu; đang ở ngoài thì check-in nếu gói còn hạn, đang trong phòng thì check-out), hiện kết quả,
+ * rồi chờ rút thẻ ra.
+ * Thẻ ảo JCIDE không rút ra được, nên có nút Quẹt lại để kiểm tra lại thẻ đang cắm.
  */
 public class CheckInForm extends javax.swing.JPanel {
     private final MainFrame app;
+    private volatile Thread kiosk;
+    private volatile boolean rescan;
 
     public CheckInForm(MainFrame app) {
         this.app = app;
         initComponents();
         setName(MainFrame.CHECKIN);
-        lblResult.setFont(lblResult.getFont().deriveFont(java.awt.Font.BOLD, 20f));
+        lblResult.setFont(lblResult.getFont().deriveFont(java.awt.Font.BOLD, 22f));
     }
 
     /** This method is called from within the constructor to
@@ -29,8 +39,6 @@ public class CheckInForm extends javax.swing.JPanel {
     private void initComponents() {
 
         lblTitle = new javax.swing.JLabel();
-        lblPin = new javax.swing.JLabel();
-        txtPin = new javax.swing.JPasswordField();
         lblMember = new javax.swing.JLabel();
         txtMember = new javax.swing.JTextField();
         lblPackage = new javax.swing.JLabel();
@@ -39,7 +47,7 @@ public class CheckInForm extends javax.swing.JPanel {
         txtExpiry = new javax.swing.JTextField();
         lblResult = new javax.swing.JLabel();
         btnBack = new javax.swing.JButton();
-        btnCheckIn = new javax.swing.JButton();
+        btnRescan = new javax.swing.JButton();
 
         addComponentListener(new java.awt.event.ComponentAdapter() {
             public void componentShown(java.awt.event.ComponentEvent evt) {
@@ -48,9 +56,7 @@ public class CheckInForm extends javax.swing.JPanel {
         });
 
         lblTitle.setFont(new java.awt.Font("Segoe UI", 1, 22)); // NOI18N
-        lblTitle.setText("Check-in vào phòng tập");
-
-        lblPin.setText("Mã PIN");
+        lblTitle.setText("Check-in / Check-out");
 
         lblMember.setText("Hội viên");
 
@@ -73,10 +79,10 @@ public class CheckInForm extends javax.swing.JPanel {
             }
         });
 
-        btnCheckIn.setText("Check-in");
-        btnCheckIn.addActionListener(new java.awt.event.ActionListener() {
+        btnRescan.setText("Quẹt lại");
+        btnRescan.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                btnCheckInActionPerformed(evt);
+                btnRescanActionPerformed(evt);
             }
         });
 
@@ -90,13 +96,11 @@ public class CheckInForm extends javax.swing.JPanel {
                     .addComponent(lblTitle)
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(lblPin)
                             .addComponent(lblMember)
                             .addComponent(lblPackage)
                             .addComponent(lblExpiry))
                         .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(txtPin, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtMember, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtPackage, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtExpiry, javax.swing.GroupLayout.PREFERRED_SIZE, 280, javax.swing.GroupLayout.PREFERRED_SIZE)))
@@ -106,7 +110,7 @@ public class CheckInForm extends javax.swing.JPanel {
                 .addGap(0, 0, Short.MAX_VALUE)
                 .addComponent(btnBack)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(btnCheckIn)
+                .addComponent(btnRescan)
                 .addGap(24, 24, 24))
         );
         layout.setVerticalGroup(
@@ -115,10 +119,6 @@ public class CheckInForm extends javax.swing.JPanel {
                 .addGap(20, 20, 20)
                 .addComponent(lblTitle)
                 .addGap(24, 24, 24)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(lblPin)
-                    .addComponent(txtPin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(10, 10, 10)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(lblMember)
                     .addComponent(txtMember, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -135,64 +135,136 @@ public class CheckInForm extends javax.swing.JPanel {
                 .addGap(24, 24, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(btnBack)
-                    .addComponent(btnCheckIn))
+                    .addComponent(btnRescan))
                 .addGap(20, 20, 20))
         );
     }
     // </editor-fold>//GEN-END:initComponents
 
     private void formComponentShown(java.awt.event.ComponentEvent evt) {//GEN-FIRST:event_formComponentShown
-        display(null, "Cắm thẻ, nhập mã PIN rồi bấm Check-in.", false);
+        start();
     }//GEN-LAST:event_formComponentShown
 
     private void btnBackActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnBackActionPerformed
-        app.card.disconnect();
+        stop();
         app.go(MainFrame.CONNECT);
     }//GEN-LAST:event_btnBackActionPerformed
 
-    private void btnCheckInActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnCheckInActionPerformed
-        try {
-            String pin = Input.pin(txtPin, null, "Mã PIN");
-            if (!app.card.isConnected()) {
-                String reader = CardService.readers().stream().filter(r -> r.contains("Contact Reader")).findFirst()
-                        .orElseThrow(() -> new IllegalStateException("Không thấy đầu đọc thẻ"));
-                app.card.connect(reader);
-            }
-            if (!app.card.isInitialized()) throw new IllegalStateException("Thẻ chưa được phát hành");
-            MemberService.CheckIn r = app.members.checkIn(pin, LocalDate.now());
-            display(r, "MỜI VÀO – gói còn " + r.daysLeft() + " ngày", true);
-        } catch (Exception e) {
-            display(null, "TỪ CHỐI: " + e.getMessage(), false);
-        } finally {
-            txtPin.setText("");
-            app.card.disconnect();   // xong lượt, người sau cắm thẻ của mình
-            app.member = null;
-        }
-    }//GEN-LAST:event_btnCheckInActionPerformed
+    private void btnRescanActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnRescanActionPerformed
+        rescan = true;   // thẻ ảo JCIDE không rút ra được: kiểm tra lại thẻ đang cắm
+    }//GEN-LAST:event_btnRescanActionPerformed
 
-    private void display(MemberService.CheckIn r, String message, boolean ok) {
-        txtMember.setText(r == null ? "" : r.member().maHV + " – " + r.member().hoTen);
-        txtPackage.setText(r == null ? "" : r.member().goiTap);
-        txtExpiry.setText(r == null ? "" : r.member().hanGoi);
-        lblResult.setText(message);
-        lblResult.setForeground(ok ? new java.awt.Color(0, 128, 0) : message.startsWith("TỪ CHỐI")
-                ? new java.awt.Color(200, 0, 0) : java.awt.Color.DARK_GRAY);
+    private void start() {
+        app.card.disconnect();
+        app.member = null;
+        show(null, "MỜI QUẸT THẺ", Color.DARK_GRAY);
+        if (kiosk != null && kiosk.isAlive()) return;
+        kiosk = new Thread(this::loop, "checkin-kiosk");
+        kiosk.setDaemon(true);
+        kiosk.start();
+    }
+
+    private void stop() {
+        Thread t = kiosk;
+        kiosk = null;
+        if (t != null) t.interrupt();
+    }
+
+    /** Chờ thẻ → kiểm tra → giữ kết quả, chờ rút thẻ (hoặc bấm Quẹt lại) → về màn chờ cho người sau. */
+    private void loop() {
+        Thread me = Thread.currentThread();
+        while (kiosk == me) {
+            try {
+                if (!isShowing()) {   // đã chuyển sang màn khác
+                    kiosk = null;
+                    return;
+                }
+                CardTerminal t = terminal();
+                if (t == null) {
+                    show(null, "Không thấy đầu đọc thẻ. Hãy bấm Run trong JCIDE.", Color.GRAY);
+                    Thread.sleep(2000);
+                    continue;
+                }
+                if (!t.waitForCardPresent(1000)) continue;
+                rescan = false;
+                long shownAt = System.currentTimeMillis();
+                check(t.getName());
+                while (kiosk == me && !rescan && isShowing() && !t.waitForCardAbsent(500)) {
+                    // thẻ vẫn cắm: giữ kết quả cho tới khi rút thẻ hoặc bấm Quẹt lại
+                }
+                long left = 3000 - (System.currentTimeMillis() - shownAt);
+                if (left > 0 && !rescan) Thread.sleep(left);
+                show(null, "MỜI QUẸT THẺ", Color.DARK_GRAY);
+            } catch (InterruptedException e) {
+                return;
+            } catch (CardException e) {   // đầu đọc biến mất (JCIDE dừng): chờ rồi thử lại
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                    return;
+                }
+            }
+        }
+    }
+
+    private void check(String reader) {
+        MemberService.Swipe r = null;
+        String msg;
+        Color color;
+        try {
+            app.card.connect(reader);
+            r = app.members.swipe(LocalDateTime.now());
+            if (!r.checkIn()) {
+                long min = r.stayed().toMinutes();
+                msg = "TẠM BIỆT – " + r.member().hoTen + ", đã tập " + (min >= 60 ? min / 60 + " giờ " : "") + min % 60 + " phút";
+                color = new Color(0, 90, 180);
+            } else {
+                boolean soon = r.daysLeft() <= MemberService.REMIND_DAYS;
+                msg = "MỜI VÀO – " + r.member().hoTen + ", gói còn " + r.daysLeft() + " ngày" + (soon ? ", nhớ gia hạn" : "");
+                color = soon ? new Color(200, 120, 0) : new Color(0, 128, 0);
+            }
+        } catch (Exception e) {
+            msg = "TỪ CHỐI – " + (e.getMessage() != null ? e.getMessage() : e.toString());
+            color = new Color(200, 0, 0);
+        } finally {
+            app.card.disconnect();   // xong lượt, thẻ được nhả ra cho người sau
+        }
+        show(r, msg, color);
+    }
+
+    private void show(MemberService.Swipe r, String message, Color color) {
+        SwingUtilities.invokeLater(() -> {
+            txtMember.setText(r == null ? "" : r.member().maHV + " – " + r.member().hoTen);
+            txtPackage.setText(r == null ? "" : r.member().goiTap);
+            txtExpiry.setText(r == null ? "" : r.member().hanGoi);
+            lblResult.setText(message);
+            lblResult.setForeground(color);
+        });
+    }
+
+    /** Đầu đọc của JCIDE (tên có "Contact Reader"), không có thì đầu đọc đầu tiên. */
+    private static CardTerminal terminal() {
+        try {
+            List<CardTerminal> ts = TerminalFactory.getDefault().terminals().list();
+            return ts.stream().filter(x -> x.getName().contains("Contact Reader")).findFirst()
+                    .orElse(ts.isEmpty() ? null : ts.get(0));
+        } catch (CardException e) {
+            return null;
+        }
     }
 
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btnBack;
-    private javax.swing.JButton btnCheckIn;
+    private javax.swing.JButton btnRescan;
     private javax.swing.JLabel lblExpiry;
     private javax.swing.JLabel lblMember;
     private javax.swing.JLabel lblPackage;
-    private javax.swing.JLabel lblPin;
     private javax.swing.JLabel lblResult;
     private javax.swing.JLabel lblTitle;
     private javax.swing.JTextField txtExpiry;
     private javax.swing.JTextField txtMember;
     private javax.swing.JTextField txtPackage;
-    private javax.swing.JPasswordField txtPin;
     // End of variables declaration//GEN-END:variables
 
 }

@@ -38,6 +38,8 @@ public class AdminHomeForm extends javax.swing.JPanel {
         txtTopUp = new javax.swing.JTextField();
         lblCheckIns = new javax.swing.JLabel();
         txtCheckIns = new javax.swing.JTextField();
+        lblInside = new javax.swing.JLabel();
+        txtInside = new javax.swing.JTextField();
         lblWarnings = new javax.swing.JLabel();
         txtWarnings = new javax.swing.JTextField();
         scrTable = new javax.swing.JScrollPane();
@@ -82,6 +84,10 @@ public class AdminHomeForm extends javax.swing.JPanel {
         lblCheckIns.setText("Lượt check-in hôm nay");
 
         txtCheckIns.setEditable(false);
+
+        lblInside.setText("Đang trong phòng (chưa check-out)");
+
+        txtInside.setEditable(false);
 
         lblWarnings.setText("Cảnh báo hôm nay (nhật ký)");
 
@@ -154,6 +160,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
                             .addComponent(lblExpiring)
                             .addComponent(lblTopUp)
                             .addComponent(lblCheckIns)
+                            .addComponent(lblInside)
                             .addComponent(lblWarnings))
                         .addGap(18, 18, 18)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -163,6 +170,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
                             .addComponent(txtExpiring, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtTopUp, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtCheckIns, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(txtInside, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(txtWarnings, javax.swing.GroupLayout.PREFERRED_SIZE, 220, javax.swing.GroupLayout.PREFERRED_SIZE)))
                     .addComponent(scrTable, javax.swing.GroupLayout.DEFAULT_SIZE, 820, Short.MAX_VALUE))
                 .addGap(24, 24, 24))
@@ -214,6 +222,10 @@ public class AdminHomeForm extends javax.swing.JPanel {
                     .addComponent(txtCheckIns, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(10, 10, 10)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(lblInside)
+                    .addComponent(txtInside, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(10, 10, 10)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(lblWarnings)
                     .addComponent(txtWarnings, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(12, 12, 12)
@@ -248,6 +260,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
             txtExpiring.setText(String.valueOf(s.expiringSoon()));
             txtTopUp.setText(String.valueOf(s.topUpThisMonth()));
             txtCheckIns.setText(String.valueOf(s.checkInsToday()));
+            txtInside.setText(s.inside() + " người");
             txtWarnings.setText(String.valueOf(s.warningsToday()));
             for (MemberInfo h : app.db.expiringWithin(7, today)) {
                 m.addRow(new Object[]{h.maHV, h.hoTen, h.sdt, h.goiTap, h.hanGoi,
@@ -311,6 +324,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
     private javax.swing.JLabel lblAdmin;
     private javax.swing.JLabel lblCheckIns;
     private javax.swing.JLabel lblExpiring;
+    private javax.swing.JLabel lblInside;
     private javax.swing.JLabel lblMembers;
     private javax.swing.JLabel lblTitle;
     private javax.swing.JLabel lblTopUp;
@@ -321,6 +335,7 @@ public class AdminHomeForm extends javax.swing.JPanel {
     private javax.swing.JTextField txtAdmin;
     private javax.swing.JTextField txtCheckIns;
     private javax.swing.JTextField txtExpiring;
+    private javax.swing.JTextField txtInside;
     private javax.swing.JTextField txtMembers;
     private javax.swing.JTextField txtTopUp;
     private javax.swing.JTextField txtWaiting;

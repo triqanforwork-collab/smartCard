@@ -16,7 +16,7 @@ gym-card/
 │   ├── db.properties.example   mẫu cấu hình MySQL
 │   └── src/main/java/gym/desktop/
 │       ├── CardService.java     gửi lệnh APDU tới thẻ
-│       ├── MemberService.java   phát hành, đăng nhập, đối chiếu số dư, báo mất / cấp lại, check-in
+│       ├── MemberService.java   phát hành, đăng nhập, đối chiếu số dư, báo mất / cấp lại, check-in / check-out quẹt thẻ
 │       ├── WalletService.java   nạp tiền, thanh toán gói, kiểm tra chữ ký RSA
 │       ├── Database.java        CSDL: hội viên, giao dịch, gói tập, Admin, nhật ký, check-in
 │       ├── MainFrame.java       cửa sổ chính, quyền Admin
@@ -52,9 +52,9 @@ Mặc định dữ liệu nằm trong file `desktop/gym.db` (SQLite, tự tạo)
 | Lệnh (chạy trong `gym-card`) | Kết quả |
 |---|---|
 | `java tools/AppletTest.java` | 117/117, 16 lệnh APDU (cần thẻ trắng) |
-| `java -cp "%CP%" tools/ScenarioTest.java` | 64/64, kịch bản đầy đủ qua các lớp dịch vụ (cần thẻ trắng) |
+| `java -cp "%CP%" tools/ScenarioTest.java` | 69/69, kịch bản đầy đủ qua các lớp dịch vụ (cần thẻ trắng) |
 | `java -cp "%CP%" tools/ScenarioTest.java reissue` | 9/9, cấp lại thẻ (bấm Run lại trong JCIDE trước) |
-| `java -cp "%CP%" tools/DbCheck.java [url user mật_khẩu]` | 25/25, lớp CSDL, không cần thẻ; có url thì chạy trên MySQL (tên CSDL phải chứa `test`) |
+| `java -cp "%CP%" tools/DbCheck.java [url user mật_khẩu]` | 30/30, lớp CSDL, không cần thẻ; có url thì chạy trên MySQL (tên CSDL phải chứa `test`) |
 | `java tools/FakeCard.java HV100 "Lê Văn An" 1234` | tạo thẻ giả để demo phát hiện thẻ giả |
 
 `%CP%` (sau khi build trong NetBeans):

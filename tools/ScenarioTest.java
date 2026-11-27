@@ -8,6 +8,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 
@@ -84,14 +85,26 @@ public class ScenarioTest {
                     db.transactions("HV100").stream().allMatch(Database.Transaction::verified)
                             && db.transactions("HV100").get(0).type().equals(Database.PAY));
 
-            section("D05, G06. Đối chiếu số dư, check-in");
+            section("D05, G06. Đối chiếu số dư, check-in / check-out");
             check("Đối chiếu: số dư thẻ khớp CSDL (1200, giao dịch số 2)", members.reconcile("HV100") == null);
-            MemberService.CheckIn ci = members.checkIn("1234", LocalDate.now());
-            check("Check-in khi gói còn hạn: ghi 1 lượt, còn " + ci.daysLeft() + " ngày",
-                    db.checkInCount("HV100") == 1 && ci.daysLeft() >= 89 && ci.daysLeft() <= 92);
-            expectError("Check-in khi gói đã hết hạn (giả lập 2 năm sau) bị từ chối",
-                    () -> members.checkIn("1234", LocalDate.now().plusYears(2)), "hết hạn");
-            check("Check-in bị từ chối không ghi lượt", db.checkInCount("HV100") == 1);
+            LocalDateTime t0 = LocalDateTime.now();
+            reconnect();   // quẹt thẻ: chưa nhập PIN
+            MemberService.Swipe in1 = members.swipe(t0);
+            check("Quẹt thẻ (không PIN, chữ ký RSA + CSDL) khi đang ở ngoài: check-in, ghi 1 lượt, còn " + in1.daysLeft() + " ngày",
+                    in1.checkIn() && db.checkInCount("HV100") == 1 && in1.member().maHV.equals("HV100")
+                            && in1.daysLeft() >= 89 && in1.daysLeft() <= 92);
+            expectError("Quẹt lại ngay sau 30 giây bị bỏ qua (lỡ tay quẹt 2 lần)", () -> members.swipe(t0.plusSeconds(30)), "vừa check-in");
+            MemberService.Swipe out1 = members.swipe(t0.plusMinutes(45));
+            check("Quẹt khi đang trong phòng: check-out, đã tập 45 phút", !out1.checkIn() && out1.stayed().toMinutes() == 45
+                    && db.lastVisit("HV100").out() != null);
+            expectError("Quẹt ngay sau check-out bị bỏ qua", () -> members.swipe(t0.plusMinutes(45).plusSeconds(20)), "vừa check-out");
+            check("Đã check-out thì check-in lại được ngay, không phải chờ 2 giờ",
+                    members.swipe(t0.plusMinutes(50)).checkIn() && db.checkInCount("HV100") == 2);
+            expectError("Quên check-out rồi sang ngày khác: lượt cũ tự đóng; gói đã hết hạn (giả lập 2 năm sau) thì từ chối",
+                    () -> members.swipe(t0.plusYears(2)), "hết hạn");
+            check("Check-in bị từ chối không ghi lượt; nhật ký có Quên check-out", db.checkInCount("HV100") == 2
+                    && db.lastVisit("HV100").closed()
+                    && db.logs(false).stream().anyMatch(l -> l.action().equals("Quên check-out")));
 
             section("K01. Bước 8–11: đổi PIN, khóa thẻ, mở khóa, quên PIN");
             card.changePin("1234", "5678");
@@ -118,6 +131,9 @@ public class ScenarioTest {
             byte[] realKey = swapKey(dbFile.getPath(), null);
             reconnect();
             expectError("Thẻ có khóa RSA khác khóa đã đăng ký bị từ chối khi đăng nhập", () -> members.login("2468"), "không hợp lệ");
+            reconnect();
+            expectError("Thẻ có khóa RSA chưa đăng ký bị từ chối khi check-in",
+                    () -> members.swipe(LocalDateTime.now().plusHours(3)), "chưa được đăng ký");
             reconnect();
             card.verifyPin("2468");
             long before = db.transactions("HV100").size();
@@ -177,7 +193,7 @@ public class ScenarioTest {
             Database.Stats st = db.stats(LocalDate.now());
             check(String.format("Thống kê: %d hội viên, %d còn hạn, %d check-in hôm nay, nạp tháng này %d, %d cảnh báo hôm nay",
                             st.members(), st.active(), st.checkInsToday(), st.topUpThisMonth(), st.warningsToday()),
-                    st.members() == 1 && st.active() == 1 && st.noPackage() == 0 && st.lostCards() + st.brokenCards() == 0 && st.checkInsToday() == 1 && st.topUpThisMonth() >= 2000 && st.warningsToday() >= 4);
+                    st.members() == 1 && st.active() == 1 && st.noPackage() == 0 && st.lostCards() + st.brokenCards() == 0 && st.checkInsToday() == 2 && st.inside() == 0 && st.topUpThisMonth() >= 2000 && st.warningsToday() >= 4);
             check("Sắp hết hạn: không ai trong 7 ngày, HV100 nằm trong 100 ngày",
                     db.expiringWithin(7, LocalDate.now()).isEmpty() && db.expiringWithin(100, LocalDate.now()).size() == 1);
 
@@ -222,7 +238,7 @@ public class ScenarioTest {
             reconnect();
             expectError("Thẻ đã báo mất bị từ chối kể cả khi nhập đúng PIN", () -> members.login("2468"), "báo mất");
             reconnect();
-            expectError("Thẻ đã báo mất không check-in được", () -> members.checkIn("2468", LocalDate.now()), "báo mất");
+            expectError("Thẻ đã báo mất không check-in được", () -> members.swipe(LocalDateTime.now().plusHours(3)), "báo mất");
             check("Nhật ký cảnh báo có: dùng thẻ đã báo mất",
                     db.logs(true).stream().anyMatch(l -> l.action().equals("Dùng thẻ đã báo mất")));
         }
@@ -250,7 +266,8 @@ public class ScenarioTest {
             reconnect();
             check("Thẻ mới đăng nhập được bằng PIN mới", members.login("1357").maHV.equals("HV100"));
             check("Đối chiếu số dư thẻ mới khớp CSDL", members.reconcile("HV100") == null);
-            check("Thẻ mới check-in được", members.checkIn("1357", LocalDate.now()).member().maHV.equals("HV100"));
+            MemberService.Swipe sw = members.swipe(LocalDateTime.now().plusHours(3));
+            check("Thẻ mới check-in được", sw.checkIn() && sw.member().maHV.equals("HV100"));
             expectError("Cấp lại thẻ cho hội viên chưa báo mất bị từ chối", () -> members.reissueCard("1357", "13572468", info, null), "đã báo mất");
             check("Nhật ký có: cấp lại thẻ, chuyển số dư",
                     db.logs(false).stream().anyMatch(l -> l.action().equals("Cấp lại thẻ"))

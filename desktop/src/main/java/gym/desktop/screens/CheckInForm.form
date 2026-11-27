@@ -25,14 +25,12 @@
                   <Component id="lblTitle" min="-2" max="-2" attributes="0"/>
                   <Group type="102" attributes="0">
                       <Group type="103" groupAlignment="0" attributes="0">
-                          <Component id="lblPin" min="-2" max="-2" attributes="0"/>
                           <Component id="lblMember" min="-2" max="-2" attributes="0"/>
                           <Component id="lblPackage" min="-2" max="-2" attributes="0"/>
                           <Component id="lblExpiry" min="-2" max="-2" attributes="0"/>
                       </Group>
                       <EmptySpace min="-2" pref="18" max="-2" attributes="0"/>
                       <Group type="103" groupAlignment="0" attributes="0">
-                          <Component id="txtPin" min="-2" pref="200" max="-2" attributes="0"/>
                           <Component id="txtMember" min="-2" pref="280" max="-2" attributes="0"/>
                           <Component id="txtPackage" min="-2" pref="280" max="-2" attributes="0"/>
                           <Component id="txtExpiry" min="-2" pref="280" max="-2" attributes="0"/>
@@ -46,7 +44,7 @@
               <EmptySpace min="0" pref="0" max="32767" attributes="0"/>
               <Component id="btnBack" min="-2" max="-2" attributes="0"/>
               <EmptySpace max="-2" attributes="0"/>
-              <Component id="btnCheckIn" min="-2" max="-2" attributes="0"/>
+              <Component id="btnRescan" min="-2" max="-2" attributes="0"/>
               <EmptySpace min="-2" pref="24" max="-2" attributes="0"/>
           </Group>
       </Group>
@@ -57,11 +55,6 @@
               <EmptySpace min="-2" pref="20" max="-2" attributes="0"/>
               <Component id="lblTitle" min="-2" max="-2" attributes="0"/>
               <EmptySpace min="-2" pref="24" max="-2" attributes="0"/>
-              <Group type="103" groupAlignment="3" attributes="0">
-                  <Component alignment="3" id="lblPin" min="-2" max="-2" attributes="0"/>
-                  <Component alignment="3" id="txtPin" min="-2" max="-2" attributes="0"/>
-              </Group>
-              <EmptySpace min="-2" pref="10" max="-2" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component alignment="3" id="lblMember" min="-2" max="-2" attributes="0"/>
                   <Component alignment="3" id="txtMember" min="-2" max="-2" attributes="0"/>
@@ -81,7 +74,7 @@
               <EmptySpace min="24" pref="24" max="32767" attributes="0"/>
               <Group type="103" groupAlignment="3" attributes="0">
                   <Component alignment="3" id="btnBack" min="-2" max="-2" attributes="0"/>
-                  <Component alignment="3" id="btnCheckIn" min="-2" max="-2" attributes="0"/>
+                  <Component alignment="3" id="btnRescan" min="-2" max="-2" attributes="0"/>
               </Group>
               <EmptySpace min="-2" pref="20" max="-2" attributes="0"/>
           </Group>
@@ -94,15 +87,8 @@
         <Property name="font" type="java.awt.Font" editor="org.netbeans.beaninfo.editors.FontEditor">
           <Font name="Segoe UI" size="22" style="1"/>
         </Property>
-        <Property name="text" type="java.lang.String" value="Check-in vào phòng tập"/>
+        <Property name="text" type="java.lang.String" value="Check-in / Check-out"/>
       </Properties>
-    </Component>
-    <Component class="javax.swing.JLabel" name="lblPin">
-      <Properties>
-        <Property name="text" type="java.lang.String" value="Mã PIN"/>
-      </Properties>
-    </Component>
-    <Component class="javax.swing.JPasswordField" name="txtPin">
     </Component>
     <Component class="javax.swing.JLabel" name="lblMember">
       <Properties>
@@ -147,12 +133,12 @@
         <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnBackActionPerformed"/>
       </Events>
     </Component>
-    <Component class="javax.swing.JButton" name="btnCheckIn">
+    <Component class="javax.swing.JButton" name="btnRescan">
       <Properties>
-        <Property name="text" type="java.lang.String" value="Check-in"/>
+        <Property name="text" type="java.lang.String" value="Quẹt lại"/>
       </Properties>
       <Events>
-        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnCheckInActionPerformed"/>
+        <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="btnRescanActionPerformed"/>
       </Events>
     </Component>
   </SubComponents>
